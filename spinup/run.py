@@ -13,6 +13,16 @@ import torch
 from copy import deepcopy
 from textwrap import dedent
 
+try:
+    import pybullet_envs
+except ImportError:
+    pybullet_envs = None
+
+try:
+    import robel
+except ImportError:
+    robel = None
+
 
 # Command line args that will go to ExperimentGrid.run, and must possess unique
 # values (therefore must be treated separately).
@@ -30,6 +40,12 @@ MPI_COMPATIBLE_ALGOS = ['vpg', 'trpo', 'ppo']
 
 # Algo names (used in a few places)
 BASE_ALGO_NAMES = ['vpg', 'trpo', 'ppo', 'ddpg', 'td3', 'sac']
+
+# RRC specific functions
+try:
+    from spinup.utils import rrc_utils
+except ImportError:
+    rrc_utils = None
 
 
 def add_with_backends(algo_list):
@@ -154,23 +170,24 @@ def parse_and_execute_grid_search(cmd, args):
     # Special handling for environment: make sure that env_name is a real,
     # registered gym environment.
     valid_envs = [e.id for e in list(gym.envs.registry.all())]
-    assert 'env_name' in arg_dict, \
+    assert 'env_name' in arg_dict or 'env_fn' in arg_dict, \
         friendly_err("You did not give a value for --env_name! Add one and try again.")
-    for env_name in arg_dict['env_name']:
-        err_msg = dedent("""
+    if 'env_fn' not in arg_dict:
+        for env_name in arg_dict['env_name']:
+            err_msg = dedent("""
 
-            %s is not registered with Gym.
+                %s is not registered with Gym.
 
-            Recommendations:
+                Recommendations:
 
-                * Check for a typo (did you include the version tag?)
+                    * Check for a typo (did you include the version tag?)
 
-                * View the complete list of valid Gym environments at
+                    * View the complete list of valid Gym environments at
 
-                    https://gym.openai.com/envs/
+                        https://gym.openai.com/envs/
 
-            """%env_name)
-        assert env_name in valid_envs, err_msg
+                """%env_name)
+            assert env_name in valid_envs, err_msg
 
 
     # Construct and execute the experiment grid.

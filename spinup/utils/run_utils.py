@@ -128,7 +128,8 @@ def call_experiment(exp_name, thunk, seed=0, num_cpu=1, data_dir=None,
     """
 
     # Determine number of CPU cores to run on
-    num_cpu = psutil.cpu_count(logical=False) if num_cpu=='auto' else num_cpu
+    if num_cpu == 'auto':
+        num_cpu = psutil.cpu_count(logical=False)
 
     # Send random seed to thunk
     kwargs['seed'] = seed
