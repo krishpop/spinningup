@@ -7,6 +7,12 @@ import torch
 from spinup import EpochLogger
 from spinup.utils.logx import restore_tf_graph
 
+try:
+    from spinup.utils import rrc_utils
+except ImportError:
+    rrc_utils = None
+
+
 
 def load_policy_and_env(fpath, itr='last', deterministic=False):
     """
@@ -146,8 +152,12 @@ if __name__ == '__main__':
     parser.add_argument('--norender', '-nr', action='store_true')
     parser.add_argument('--itr', '-i', type=int, default=-1)
     parser.add_argument('--deterministic', '-d', action='store_true')
+    parser.add_argument('--env_fn', type=str)
     args = parser.parse_args()
     env, get_action = load_policy_and_env(args.fpath, 
                                           args.itr if args.itr >=0 else 'last',
                                           args.deterministic)
+    if env is None:
+        assert rrc_utils is not None
+        env = eval(args.env_fn)()
     run_policy(env, get_action, args.len, args.episodes, not(args.norender))

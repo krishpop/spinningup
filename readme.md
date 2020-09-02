@@ -41,7 +41,7 @@ Additional functionality added for [Real Robot Challenge](https://real-robot-cha
 
 Example Usage:
 
-```{python}
+```
 $ python -m spinup.run ppo --env_fn rrc_utils.rrc_ppo_env_fn --exp_name ppo_rrc_t1 --cpu auto
 ```
 

@@ -10,3 +10,5 @@ data/
 _build/
 
 **/.ipynb_checkpoints/
+*.swp
+*.swo
