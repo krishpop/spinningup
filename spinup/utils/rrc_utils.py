@@ -2,7 +2,7 @@ import gym
 from gym import wrappers
 
 
-FRAMESKIP = 3
+FRAMESKIP = 10
 
 try:
     from rrc_simulation.gym_wrapper.envs import cube_env, custom_env
@@ -10,7 +10,7 @@ try:
     from gym.envs.registration import register
 
     registered_envs = [spec.id for spec in gym.envs.registry.all()]
-    EPLEN= move_cube.episode_length // FRAMESKIP
+    EPLEN = move_cube.episode_length // FRAMESKIP
     if "real_robot_challenge_phase_1-v2" not in registered_envs:
         register(
             id="real_robot_challenge_phase_1-v2",
@@ -38,21 +38,22 @@ def make_env_fn(env_str, wrapper_params=[], **make_kwargs):
 
 if cube_env:
     rrc_env_str = 'rrc_simulation.gym_wrapper:real_robot_challenge_phase_1-v1'
-    push_initializer = cube_env.RandomInitializer(difficulty=1)
+    # push_initializer = cube_env.RandomInitializer(difficulty=1)
+    push_initializer = custom_env.CurriculumInitializer(initial_dist=0, num_levels=5)
     lift_initializer = cube_env.RandomInitializer(difficulty=2)
     ori_initializer = cube_env.RandomInitializer(difficulty=3) 
     rrc_ppo_wrappers = [
-            {'cls': wrappers.TimeLimit, 
-             'kwargs': dict(max_episode_steps=EPLEN)},
             {'cls': wrappers.FilterObservation, 
              'kwargs': dict(filter_keys=['desired_goal', 
                                          'observation'])},
             wrappers.FlattenObservation, 
             {'cls': wrappers.RescaleAction, 
              'args': [-1, 1]},
-            wrappers.ClipAction
+            wrappers.ClipAction,
+            {'cls': wrappers.TimeLimit, 
+             'kwargs': dict(max_episode_steps=EPLEN)},
             ]
-    push_wrappers = rrc_ppo_wrappers[:1] + rrc_ppo_wrappers[2:]
+    push_wrappers = rrc_ppo_wrappers[1:]
     action_type = cube_env.ActionType.POSITION
     rrc_ppo_env_fn = make_env_fn(rrc_env_str, rrc_ppo_wrappers,
                                  initializer=push_initializer, 
