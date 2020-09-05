@@ -175,6 +175,7 @@ def main():
     parser.add_argument('--select', nargs='*')
     parser.add_argument('--exclude', nargs='*')
     parser.add_argument('--est', default='mean')
+    parser.add_argument('--remote', '-r', action='store_true')
     args = parser.parse_args()
     """
 
@@ -224,7 +225,9 @@ def main():
             curves from logdirs that do not contain these substrings.
 
     """
-
+    if args.remote:
+        import matplotlib
+        matplotlib.use('TkAgg')
     make_plots(args.logdir, args.legend, args.xaxis, args.value, args.count, 
                smooth=args.smooth, select=args.select, exclude=args.exclude,
                estimator=args.est)
