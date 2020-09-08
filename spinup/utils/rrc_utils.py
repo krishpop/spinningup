@@ -42,6 +42,8 @@ if cube_env:
     push_initializer = custom_env.CurriculumInitializer(initial_dist=0, num_levels=5)
     lift_initializer = cube_env.RandomInitializer(difficulty=2)
     ori_initializer = cube_env.RandomInitializer(difficulty=3) 
+    push_info_kwargs = {'is_success': 'SuccessRate', 'final_dist': 'FinalDist',
+                        'final_norm_dist': 'FinalScore'}
     rrc_ppo_wrappers = [
             {'cls': wrappers.FilterObservation, 
              'kwargs': dict(filter_keys=['desired_goal', 
@@ -52,6 +54,11 @@ if cube_env:
             wrappers.ClipAction,
             {'cls': wrappers.TimeLimit, 
              'kwargs': dict(max_episode_steps=EPLEN)},
+            ]
+    rrc_vds_wrappers = [
+            {'cls': wrappers.TimeLimit, 
+             'kwargs': dict(max_episode_steps=EPLEN)},
+            custom_env.FlattenGoalWrapper,
             ]
     push_wrappers = rrc_ppo_wrappers[1:]
     action_type = cube_env.ActionType.POSITION
@@ -65,6 +72,12 @@ if cube_env:
                                   action_type=action_type, 
                                   visualization=True,
                                   frameskip=FRAMESKIP)
+    rrc_vds_env_fn = make_env_fn(rrc_env_str, rrc_vds_wrappers,
+                                 initializer=push_initializer, 
+                                 action_type=action_type, 
+                                 visualization=False,
+                                 frameskip=FRAMESKIP)
+
 
     push_env_str = 'real_robot_challenge_phase_1-v2'
     push_ppo_env_fn = make_env_fn(push_env_str, push_wrappers,

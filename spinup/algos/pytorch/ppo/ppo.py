@@ -88,7 +88,7 @@ class PPOBuffer:
 def ppo(env_fn, actor_critic=core.MLPActorCritic, ac_kwargs=dict(), seed=0, 
         steps_per_epoch=4000, epochs=50, gamma=0.99, clip_ratio=0.2, pi_lr=3e-4,
         vf_lr=1e-3, train_pi_iters=80, train_v_iters=80, lam=0.97, max_ep_len=1000,
-        target_kl=0.01, logger_kwargs=dict(), save_freq=10):
+        target_kl=0.01, logger_kwargs=dict(), info_kwargs=dict(), save_freq=10):
     """
     Proximal Policy Optimization (by clipping), 
 
@@ -186,6 +186,8 @@ def ppo(env_fn, actor_critic=core.MLPActorCritic, ac_kwargs=dict(), seed=0,
             for early stopping. (Usually small, 0.01 or 0.05.)
 
         logger_kwargs (dict): Keyword args for EpochLogger.
+
+        info_kwargs (dict): Additional info dict key to log.
 
         save_freq (int): How often (in terms of gap between epochs) to save
             the current policy and value function.
@@ -299,7 +301,7 @@ def ppo(env_fn, actor_critic=core.MLPActorCritic, ac_kwargs=dict(), seed=0,
         for t in range(local_steps_per_epoch):
             a, v, logp = ac.step(torch.as_tensor(o, dtype=torch.float32))
 
-            next_o, r, d, _ = env.step(a)
+            next_o, r, d, i = env.step(a)
             ep_ret += r
             ep_len += 1
 
@@ -326,6 +328,12 @@ def ppo(env_fn, actor_critic=core.MLPActorCritic, ac_kwargs=dict(), seed=0,
                 if terminal:
                     # only save EpRet / EpLen if trajectory finished
                     logger.store(EpRet=ep_ret, EpLen=ep_len)
+                    info_log = {}
+                    for k, v in info_kwargs.items():
+                        if k in i:
+                            info_log[v] = i.get(k)
+                    if info_log:
+                        logger.store(**info_log)
                 o, ep_ret, ep_len = env.reset(), 0, 0
 
 
@@ -351,6 +359,10 @@ def ppo(env_fn, actor_critic=core.MLPActorCritic, ac_kwargs=dict(), seed=0,
         logger.log_tabular('ClipFrac', average_only=True)
         logger.log_tabular('StopIter', average_only=True)
         logger.log_tabular('Time', time.time()-start_time)
+        for k, v in info_kwargs.items():
+            if v in logger.epoch_dict:
+                logger.log_tabular(v, average_only=True)
+
         logger.dump_tabular()
 
 if __name__ == '__main__':

@@ -8,6 +8,10 @@ import time
 import spinup.algos.pytorch.td3.core as core
 from spinup.utils.logx import EpochLogger
 
+try:
+    import robel
+except ImportError:
+    robel = None
 
 class ReplayBuffer:
     """
