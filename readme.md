@@ -43,5 +43,7 @@ Example Usage:
 
 ```
 $ python -m spinup.run ppo --env_fn rrc_utils.rrc_ppo_env_fn --exp_name ppo_rrc_t1 --cpu auto
+$ python -m spinup.run ppo --exp_name ppo_push ----env_fn rrc_utils.push_ppo_env_fn \
+    --steps_per_epoch 22500 --epochs 50 --cpu 10 --info_kwargs rrc_utils.push_info_kwargs
 ```
 

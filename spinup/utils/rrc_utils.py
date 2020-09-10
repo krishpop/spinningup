@@ -50,8 +50,6 @@ if cube_env:
              'kwargs': dict(filter_keys=['desired_goal', 
                                          'observation'])},
             wrappers.FlattenObservation, 
-            #{'cls': wrappers.RescaleAction, 
-            # 'args': [-1, 1]},
             wrappers.ClipAction,
             {'cls': custom_env.LogInfoWrapper,
              'kwargs': dict(info_keys=['final_dist', 'final_score',
@@ -66,7 +64,7 @@ if cube_env:
             custom_env.FlattenGoalWrapper,
             ]
     push_wrappers = [{'cls': custom_env.DistRewardWrapper, 
-                      'kwargs': dict(target_dist=None, dist_coef=1.)}]
+                      'kwargs': dict(target_dist=0.2, dist_coef=1.)}]
     push_wrappers = rrc_ppo_wrappers[1:] + push_wrappers
     action_type = cube_env.ActionType.POSITION
     rrc_ppo_env_fn = make_env_fn(rrc_env_str, rrc_ppo_wrappers,
