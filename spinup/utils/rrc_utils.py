@@ -37,21 +37,26 @@ def make_env_fn(env_str, wrapper_params=[], **make_kwargs):
 
 
 if cube_env:
-    rrc_env_str = 'rrc_simulation.gym_wrapper:real_robot_challenge_phase_1-v1'
-    # push_initializer = cube_env.RandomInitializer(difficulty=1)
-    push_initializer = custom_env.CurriculumInitializer(initial_dist=0, num_levels=5)
+    rrc_env_str = 'rrc_simulation.gym_wrapper:real_robot_challenge_phase_1-v1' # push_initializer = cube_env.RandomInitializer(difficulty=1)
+    push_initializer = custom_env.CurriculumInitializer(initial_dist=0., num_levels=5)
     lift_initializer = cube_env.RandomInitializer(difficulty=2)
     ori_initializer = cube_env.RandomInitializer(difficulty=3) 
-    push_info_kwargs = {'is_success': 'SuccessRate', 'final_dist': 'FinalDist',
-                        'final_norm_dist': 'FinalScore'}
+    # Val in info string calls logger.log_tabular() with_min_and_max to False
+    push_info_kwargs = {'is_success': 'SuccessRateVal', 'final_dist': 'FinalDist',
+        'final_score': 'FinalScore', 'init_sample_radius': 'InitSampleDistVal',
+        'goal_sample_radius': 'GoalSampleDistVal'}
     rrc_ppo_wrappers = [
             {'cls': wrappers.FilterObservation, 
              'kwargs': dict(filter_keys=['desired_goal', 
                                          'observation'])},
             wrappers.FlattenObservation, 
-            {'cls': wrappers.RescaleAction, 
-             'args': [-1, 1]},
+            #{'cls': wrappers.RescaleAction, 
+            # 'args': [-1, 1]},
             wrappers.ClipAction,
+            {'cls': custom_env.LogInfoWrapper,
+             'kwargs': dict(info_keys=['final_dist', 'final_score',
+                                       'init_sample_radius',
+                                       'goal_sample_radius'])},
             {'cls': wrappers.TimeLimit, 
              'kwargs': dict(max_episode_steps=EPLEN)},
             ]
@@ -60,7 +65,9 @@ if cube_env:
              'kwargs': dict(max_episode_steps=EPLEN)},
             custom_env.FlattenGoalWrapper,
             ]
-    push_wrappers = rrc_ppo_wrappers[1:]
+    push_wrappers = [{'cls': custom_env.DistRewardWrapper, 
+                      'kwargs': dict(target_dist=None, dist_coef=1.)}]
+    push_wrappers = rrc_ppo_wrappers[1:] + push_wrappers
     action_type = cube_env.ActionType.POSITION
     rrc_ppo_env_fn = make_env_fn(rrc_env_str, rrc_ppo_wrappers,
                                  initializer=push_initializer, 
