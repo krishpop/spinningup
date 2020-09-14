@@ -76,7 +76,8 @@ class Logger:
     state of a training run, and the trained model.
     """
 
-    def __init__(self, output_dir=None, output_fname='progress.txt', exp_name=None):
+    def __init__(self, output_dir=None, output_fname='progress.txt', exp_name=None,
+                 max_saves=10):
         """
         Initialize a Logger.
 
@@ -94,6 +95,8 @@ class Logger:
                 will know to group them. (Use case: if you run the same
                 hyperparameter configuration with multiple random seeds, you
                 should give them all the same ``exp_name``.)
+
+            max_saves (int): Number of saves that are kept from training.
         """
         if proc_id()==0:
             self.output_dir = output_dir or "/tmp/experiments/%i"%int(time.time())
@@ -111,6 +114,7 @@ class Logger:
         self.log_headers = []
         self.log_current_row = {}
         self.exp_name = exp_name
+        self.max_saves = max_saves
 
     def log(self, msg, color='green'):
         """Print a colorized message to stdout."""
@@ -256,6 +260,11 @@ class Logger:
                 "First have to setup saving with self.setup_pytorch_saver"
             fpath = 'pyt_save'
             fpath = osp.join(self.output_dir, fpath)
+            if len(os.listdir(self.output_dir)) == self.max_saves:
+                saves = [int(x.split('.')[0][5:]) for x in os.listdir(fpath) if len(x)>8 and 'model' in x]
+                fname = 'model{}.pt'.format(min(saves))
+                os.remove(osp.join(fpath, fname))
+
             fname = 'model' + ('%d'%itr if itr is not None else '') + '.pt'
             fname = osp.join(fpath, fname)
             os.makedirs(fpath, exist_ok=True)

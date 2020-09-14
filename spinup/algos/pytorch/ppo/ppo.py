@@ -339,7 +339,7 @@ def ppo(env_fn, actor_critic=core.MLPActorCritic, ac_kwargs=dict(), seed=0,
 
         # Save model
         if (epoch % save_freq == 0) or (epoch == epochs-1):
-            logger.save_state({'env': env}, None)
+            logger.save_state({'env': env}, epoch)
 
         # Perform PPO update!
         update()
@@ -361,7 +361,9 @@ def ppo(env_fn, actor_critic=core.MLPActorCritic, ac_kwargs=dict(), seed=0,
         logger.log_tabular('Time', time.time()-start_time)
         for k, v in info_kwargs.items():
             if v in logger.epoch_dict:
-                logger.log_tabular(v, average_only=True)
+                with_min_and_max = 'Val' not in v
+                logger.log_tabular(v, average_only=True,
+                        with_min_and_max=with_min_and_max)
 
         logger.dump_tabular()
 
