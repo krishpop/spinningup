@@ -166,3 +166,6 @@ if cube_env:
                                        action_type=action_type,
                                        visualization=True,
                                        frameskip=FRAMESKIP)
+
+    eval_keys = ['is_success', 'is_success_ori', 'final_ori_dist', 'final_dist',
+                 'final_score']
