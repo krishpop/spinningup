@@ -107,7 +107,10 @@ def load_pytorch_policy(fpath, itr, deterministic=False):
     def get_action(x):
         with torch.no_grad():
             x = torch.as_tensor(x, dtype=torch.float32)
-            action = model.act(x)
+            if deterministic:
+                action = model.pi(x)[0].mean.numpy()
+            else:
+                action = model.act(x)
         return action
 
     return get_action

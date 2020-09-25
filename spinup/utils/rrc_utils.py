@@ -89,6 +89,8 @@ if cube_env:
         ]
     push_wrappers = rrc_ppo_wrappers[1:] + push_wrappers
     reorient_wrappers = [
+            {'cls': custom_env.ReorientWrapper,
+             'kwargs': dict(goal_env=False, dist_thresh=0.08)},
             {'cls': custom_env.LogInfoWrapper,
              'kwargs': dict(info_keys=reorient_info_keys)},
             {'cls': custom_env.CubeRewardWrapper,
@@ -135,10 +137,14 @@ if cube_env:
                             'kwargs': dict(relative=False)},
                            {'cls': custom_env.ReorientWrapper,
                             'kwargs': dict(goal_env=False, dist_thresh=0.08)},
-                           dict(cls=wrappers.TimeLimit, kwargs=dict(max_episode_steps=EPLEN)),
-                           dict(cls=custom_env.LogInfoWrapper, kwargs=dict(info_keys=info_keys[:-2])),
-                           dict(cls=custom_env.CubeRewardWrapper, kwargs=dict(
-                               pos_coef=.8, ori_coef=1., ac_norm_pen=.2, rew_fn='exp')),
+                           {'cls': wrappers.TimeLimit,
+                            'kwargs': dict(max_episode_steps=EPLEN)},
+                           {'cls': custom_env.LogInfoWrapper,
+                            'kwargs': dict(info_keys=info_keys[:-2])},
+                           {'cls': custom_env.CubeRewardWrapper,
+                            'kwargs': dict(
+                               pos_coef=1., ori_coef=1., ac_norm_pen=0.,
+                               rew_fn='exp', augment_reward=True)},
                            wrappers.FlattenObservation]
 
     reorient_env_str = 'real_robot_challenge_phase_1-v3'
