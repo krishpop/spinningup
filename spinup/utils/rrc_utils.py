@@ -80,8 +80,10 @@ log_info_wrapper = functools.partial(custom_env.LogInfoWrapper,
 reorient_log_info_wrapper = functools.partial(custom_env.LogInfoWrapper,
                                               info_keys=reorient_info_keys)
 
-final_wrappers = [functools.partial(custom_env.ScaledActionWrapper, goal_env=False, relative=True),
+final_wrappers = [functools.partial(custom_env.ScaledActionWrapper, goal_env=True,
+                                    relative=True),
                   functools.partial(wrappers.TimeLimit, max_episode_steps=EPLEN),
+                  log_info_wrapper,
                   wrappers.ClipAction, wrappers.FlattenObservation]
 final_wrappers = final_wrappers_short = [
        functools.partial(custom_env.ScaledActionWrapper, goal_env=False, relative=True),
