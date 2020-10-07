@@ -88,7 +88,8 @@ class PPOBuffer:
 def ppo(env_fn, actor_critic=core.MLPActorCritic, ac_kwargs=dict(), seed=0, 
         steps_per_epoch=4000, epochs=50, gamma=0.99, clip_ratio=0.2, pi_lr=3e-4,
         vf_lr=1e-3, train_pi_iters=80, train_v_iters=80, lam=0.97, max_ep_len=1000,
-        target_kl=0.01, logger_kwargs=dict(), info_kwargs=dict(), save_freq=10):
+        target_kl=0.01, logger_kwargs=dict(), info_kwargs=dict(), save_freq=10,
+        early_stopping_fn=None):
     """
     Proximal Policy Optimization (by clipping), 
 
@@ -308,7 +309,7 @@ def ppo(env_fn, actor_critic=core.MLPActorCritic, ac_kwargs=dict(), seed=0,
             # save and log
             buf.store(o, a, r, v, logp)
             logger.store(VVals=v)
-            
+
             # Update obs (critical!)
             o = next_o
 
@@ -359,13 +360,23 @@ def ppo(env_fn, actor_critic=core.MLPActorCritic, ac_kwargs=dict(), seed=0,
         logger.log_tabular('ClipFrac', average_only=True)
         logger.log_tabular('StopIter', average_only=True)
         logger.log_tabular('Time', time.time()-start_time)
+        early_stop = False
         for k, v in info_kwargs.items():
             if v in logger.epoch_dict:
                 with_min_and_max = 'Val' not in v
                 logger.log_tabular(v, average_only=True,
                         with_min_and_max=with_min_and_max)
+            if k == 'is_success' and early_stopping_fn:
+                early_stop = early_stopping_fn(
+                        steps=epoch * local_steps_per_epoch * num_procs(),
+                        success_rate=logger.log_current_row[v])
 
         logger.dump_tabular()
+        if early_stop:
+            if (epoch % save_freq != 0):
+                logger.save_state({'env': env}, epoch)
+            logger.log("Early stopping after {} epochs".format(epoch))
+            return
 
 if __name__ == '__main__':
     import argparse
