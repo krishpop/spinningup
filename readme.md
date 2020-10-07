@@ -47,3 +47,9 @@ $ python -m spinup.run ppo --exp_name ppo_push ----env_fn rrc_utils.push_ppo_env
     --steps_per_epoch 22500 --epochs 50 --cpu 10 --info_kwargs rrc_utils.push_info_kwargs
 ```
 
+To visualize a trained policy:
+```
+$ tar -xzvf ./data/scaled_actions.tar.gz
+$ python -m spinup.run test_policy ./data/scaled_actions/scaled_actions_s0/ \
+    --env_fn rrc_utils.test_reorient_ppo_env_fn -n-r -n 1
+```
