@@ -6,21 +6,21 @@ import torch.nn as nn
 
 from gym import wrappers
 from spinup.utils.run_utils import ExperimentGrid
-from spinup import ppo_pytorch
+from spinup import ppo_pytorch, sac_pytorch, td3_pytorch
 from rrc_simulation.gym_wrapper.envs import cube_env, custom_env
 
 
 FRAMESKIP = 10
-EPLEN = 50
+EPLEN = 100
 
+rl_algs = {'sac': sac_pytorch, 'ppo': ppo_pytorch, 'td3': td3_pytorch}
 
-def run_ppo(pos_coef=1., ori_coef=1.,ori_thresh=np.pi/6, dist_thresh=0.06,
-            ac_norm_pen=.1, fingertip_coef=1., augment_rew=False,
+def run_rl_alg(alg_name='ppo', pos_coef=1., ori_coef=.5, ori_thresh=np.pi, dist_thresh=0.06,
+            ac_norm_pen=0, fingertip_coef=0, augment_rew=True,
             ep_len=EPLEN, frameskip=FRAMESKIP, rew_fn='exp',
-            sample_radius=0.09, ac_wrappers=[], relative=(False, False, True),
-            lim_pen=0., **ppo_kwargs):
-    env_fn = None
-    env_fn = rrc_utils.reorient_ppo_env_fn
+            sample_radius=0.09, ac_wrappers=[], relative=(False, False, False),
+            lim_pen=0., **alg_kwargs):
+    env_fn = None # rrc_utils.recenter_ppo_env_fn
     early_stop = rrc_utils.success_rate_early_stopping
     if env_fn is None:
         scaled_ac = 'scaled' in ac_wrappers
@@ -47,7 +47,7 @@ def run_ppo(pos_coef=1., ori_coef=1.,ori_thresh=np.pi/6, dist_thresh=0.06,
             final_wrappers.append(custom_env.RelativeGoalWrapper)
 
         final_wrappers += [functools.partial(wrappers.TimeLimit, max_episode_steps=ep_len),
-                           rrc_utils.log_info_wrapper,
+                           rrc_utils.reorient_log_info_wrapper,
                            wrappers.ClipAction, wrappers.FlattenObservation]
         env_wrappers = []
         if task_space:
@@ -62,8 +62,10 @@ def run_ppo(pos_coef=1., ori_coef=1.,ori_thresh=np.pi/6, dist_thresh=0.06,
                                        initializer=initializer,
                                        action_type=action_type,
                                        visualization=False, frameskip=frameskip)
-    ppo_pytorch(env_fn=env_fn, info_kwargs=rrc_utils.reorient_info_kwargs,
-                early_stopping_fn=early_stop ,**ppo_kwargs)
+    rl_alg = RL_ALGS.get(alg_name)
+    assert rl_alg is not None, 'alg_name {} is not valid'.format(alg_name)
+    rl_alg(env_fn=env_fn, info_kwargs=rrc_utils.reorient_info_kwargs,
+                early_stopping_fn=early_stop ,**alg_kwargs)
 
 
 if __name__ == '__main__':
@@ -71,7 +73,7 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser()
     parser.add_argument('--cpu', type=int, default=6)
     parser.add_argument('--num_runs', type=int, default=1)
-    parser.add_argument('--steps_per_epoch', type=int, default=8000)
+    parser.add_argument('--steps_per_epoch', type=int, default=None)
     parser.add_argument('--exp_name', type=str, default='ppo-reorient')
     parser.add_argument('--data_dir', type=str, default=None)
     parser.add_argument('--datestamp', '--dt', action='store_true')
@@ -101,7 +103,11 @@ if __name__ == '__main__':
     eg = ExperimentGrid(name=args.exp_name)
     eg.add('seed', [10*i for i in range(args.num_runs)])
     eg.add('epochs', 250)
-    eg.add('steps_per_epoch', args.steps_per_epoch)
+    if args.alg == 'sac':
+        if args.replay_size:
+            eg.add('replay_size', args.replay_size, 'rbsize')
+    if args.steps_per_epoch:
+        eg.add('steps_per_epoch', args.steps_per_epoch)
     eg.add('ac_kwargs:hidden_sizes', [(64,64)], 'hid')
     eg.add('ac_kwargs:activation', [nn.ReLU], 'ac-act')
     if args.frameskip:
@@ -125,8 +131,8 @@ if __name__ == '__main__':
     if args.ep_len:
         eg.add('ep_len', args.ep_len, 'el')
 
-    eg.add('ac_wrappers', [('task',), ('task', 'step')], 'acw')
+    eg.add('ac_wrappers', [('scaled',), ('scaled', 'step')], 'acw')
     # relative = [args.relative_scaledwrapper, args.relative_taskwrapper, args.relative_goalwrapper]
     # eg.add('relative', [relative], 'rel')
-    eg.run(run_ppo, num_cpu=args.cpu, data_dir=args.data_dir,
+    eg.run(run_rl_alg, num_cpu=args.cpu, data_dir=args.data_dir,
            datestamp=args.datestamp)

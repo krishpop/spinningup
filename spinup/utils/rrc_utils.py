@@ -11,7 +11,7 @@ registered_envs = [spec.id for spec in gym.envs.registry.all()]
 
 FRAMESKIP = 10
 EPLEN = move_cube.episode_length // FRAMESKIP
-EPLEN_SHORT = 50  # 500 total timesteps
+EPLEN_SHORT = 100  # 500 total timesteps
 
 if "real_robot_challenge_phase_1-v2" not in registered_envs:
     register(
@@ -40,8 +40,8 @@ def success_rate_early_stopping(steps, success_rate):
 def make_env_fn(env_str, wrapper_params=[], **make_kwargs):
     """Returns env_fn to pass to spinningup alg"""
 
-    def env_fn():
-        env = gym.make(env_str, **make_kwargs)
+    def env_fn(visualization=False):
+        env = gym.make(env_str, visualization=visualization, **make_kwargs)
         for w in wrapper_params:
             if isinstance(w, dict):
                 env = w['cls'](env, *w.get('args', []), **w.get('kwargs', {}))
@@ -52,14 +52,17 @@ def make_env_fn(env_str, wrapper_params=[], **make_kwargs):
 
 
 push_random_initializer = cube_env.RandomInitializer(difficulty=1)
+
+fixed_reorient_initializer = cube_env.RandomGoalReorientInitializer(difficulty=1)
+
 push_curr_initializer = custom_env.CurriculumInitializer(initial_dist=0.,
                                                          num_levels=5)
 push_fixed_initializer = custom_env.CurriculumInitializer(initial_dist=0.,
                                                           num_levels=2)
-reorient_curr_initializer = custom_env.CurriculumInitializer(
+reorient_initializer = reorient_curr_initializer = custom_env.CurriculumInitializer(
         initial_dist=0.06, num_levels=3, difficulty=4,
         fixed_goal=custom_env.RandomOrientationInitializer.goal)
-reorient_initializer = custom_env.ReorientInitializer(1, 0.09)
+recenter_initializer = custom_env.ReorientInitializer(1, 0.09)
 
 push_initializer = push_fixed_initializer
 
@@ -134,6 +137,11 @@ rew_wrappers = [functools.partial(custom_env.CubeRewardWrapper,
                                   goal_env=False, dist_thresh=0.075,
                                   ori_thresh=np.pi)]
 
+recenter_rew_wrappers = [functools.partial(custom_env.CubeRewardWrapper, pos_coef=1., ori_coef=.5,
+                                       ac_norm_pen=0., augment_reward=True, rew_fn='exp'),
+                     functools.partial(custom_env.ReorientWrapper, goal_env=False, dist_thresh=0.05,
+                         ori_thresh=np.pi)]
+
 goal_filter_wrapper = [functools.partial(wrappers.FilterObservation,
                                         filter_keys=['desired_goal',
                                             'observation'])]
@@ -143,11 +151,9 @@ rrc_vds_wrappers = goal_filter_wrapper + final_wrappers_vds
 push_wrappers = [functools.partial(custom_env.CubeRewardWrapper, pos_coef=1.,
                           ac_norm_pen=0.2, rew_fn='exp')]
 push_wrappers = push_wrappers + final_wrappers
-reorient_wrappers = [functools.partial(custom_env.CubeRewardWrapper, pos_coef=1., ori_coef=.5,
-                                       ac_norm_pen=0., augment_reward=True, rew_fn='exp'),
-                     functools.partial(custom_env.ReorientWrapper, goal_env=False, dist_thresh=0.08)]
-reorient_wrappers_rel = reorient_wrappers + final_wrappers_reorient
-reorient_wrappers_abs = reorient_wrappers + final_wrappers_reorient_abs
+
+recenter_wrappers_rel = recenter_rew_wrappers + final_wrappers_reorient
+recenter_wrappers_abs = recenter_rew_wrappers + final_wrappers_reorient_abs
 
 abs_task_wrappers =  [abs_task_wrapper] + rew_wrappers + final_wrappers_reorient[1:] + [wrappers.ClipAction]
 rel_task_wrappers =  [rel_task_wrapper] + rew_wrappers + final_wrappers_reorient[1:] + [wrappers.ClipAction]
@@ -161,11 +167,7 @@ rrc_ppo_env_fn = make_env_fn(rrc_env_str, rrc_ppo_wrappers,
                              action_type=action_type,
                              visualization=False,
                              frameskip=FRAMESKIP)
-test_ppo_env_fn = make_env_fn(rrc_env_str, rrc_ppo_wrappers,
-                              initializer=push_initializer,
-                              action_type=action_type,
-                              visualization=True,
-                              frameskip=FRAMESKIP)
+
 rrc_vds_env_fn = make_env_fn(rrc_env_str, rrc_vds_wrappers,
                              initializer=push_initializer,
                              action_type=action_type,
@@ -179,12 +181,6 @@ push_ppo_env_fn = make_env_fn(push_env_str, push_wrappers,
                               action_type=action_type,
                               visualization=False,
                               frameskip=FRAMESKIP)
-
-test_push_ppo_env_fn = make_env_fn(push_env_str, push_wrappers,
-                                   initializer=push_initializer,
-                                   action_type=action_type,
-                                   visualization=True,
-                                   frameskip=FRAMESKIP)
 
 reorient_env_str = 'real_robot_challenge_phase_1-v3'
 abs_task_env_fn = make_env_fn(reorient_env_str, abs_task_wrappers,
@@ -210,23 +206,23 @@ rel_task_step_env_fn = make_env_fn(reorient_env_str, rel_task_step_wrappers,
                               visualization=False,
                               frameskip=5)
 
-reorient_abs_ppo_env_fn = make_env_fn(reorient_env_str, reorient_wrappers_abs,
-                              initializer=reorient_initializer,
+recenter_rel_ppo_env_fn = make_env_fn(reorient_env_str, recenter_wrappers_rel,
+                              initializer=recenter_initializer,
                               action_type=action_type,
                               visualization=False,
                               frameskip=FRAMESKIP)
 
-reorient_ppo_env_fn = make_env_fn(reorient_env_str, reorient_wrappers_rel,
-                              initializer=reorient_initializer,
+recenter_ppo_env_fn = make_env_fn(reorient_env_str, recenter_wrappers_abs,
+                              initializer=recenter_initializer,
                               action_type=action_type,
                               visualization=False,
                               frameskip=FRAMESKIP)
 
-test_reorient_ppo_env_fn = make_env_fn(reorient_env_str, reorient_wrappers_rel,
-                                   initializer=reorient_initializer,
-                                   action_type=action_type,
-                                   visualization=True,
-                                   frameskip=FRAMESKIP)
+reorient_center_env_fn = make_env_fn(reorient_env_str, recenter_wrappers_rel,
+                                     initializer=fixed_reorient_initializer,
+                                     action_type=action_type,
+                                     visualization=False)
+
 
 eval_keys = ['is_success', 'is_success_ori', 'final_ori_dist', 'final_dist',
              'final_score']
