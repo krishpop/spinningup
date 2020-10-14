@@ -85,6 +85,7 @@ reorient_info_keys = ['is_success', 'is_success_ori', 'final_dist', 'final_score
                       'final_ori_dist', 'final_ori_scaled']
 action_type = cube_env.ActionType.POSITION
 
+
 log_info_wrapper = functools.partial(custom_env.LogInfoWrapper,
                                      info_keys=info_keys)
 reorient_log_info_wrapper = functools.partial(custom_env.LogInfoWrapper,
@@ -218,8 +219,15 @@ recenter_env_fn = make_env_fn(reorient_env_str, recenter_wrappers_abs,
                               frameskip=FRAMESKIP)
 
 reorient_env_fn = make_env_fn(reorient_env_str, reorient_wrappers_relgoal,
-                                     initializer=fixed_reorient_initializer,
-                                     action_type=action_type)
+                              initializer=fixed_reorient_initializer,
+                              action_type=action_type,
+                              frameskip=FRAMESKIP)
+
+reorient_task_env_fn = make_env_fn(reorient_env_str, reorient_wrappers_relgoaltask,
+                              initializer=fixed_reorient_initializer,
+                              action_type=cube_env.ActionType.TORQUE,
+                              frameskip=5)
+
 
 
 eval_keys = ['is_success', 'is_success_ori', 'final_ori_dist', 'final_dist',
