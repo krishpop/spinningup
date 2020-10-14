@@ -4,6 +4,7 @@ import os
 import os.path as osp
 import tensorflow as tf
 import torch
+import pybullet as p
 from spinup import EpochLogger
 from spinup.utils.logx import restore_tf_graph
 
@@ -116,7 +117,8 @@ def load_pytorch_policy(fpath, itr, deterministic=False):
     return get_action
 
 
-def run_policy(env, get_action, max_ep_len=None, num_episodes=100, render=True):
+def run_policy(env, get_action, max_ep_len=None, num_episodes=100, render=True,
+               save_vid=''):
 
     assert env is not None, \
         "Environment not found!\n\n It looks like the environment wasn't saved, " + \
@@ -126,6 +128,9 @@ def run_policy(env, get_action, max_ep_len=None, num_episodes=100, render=True):
     logger = EpochLogger()
     o, r, d, ep_ret, ep_len, n = env.reset(), 0, False, 0, 0, 0
     while n < num_episodes:
+        if save_vid and rrc_utils and env.unwrapped.visualization:
+            save_vid_path = osp.splitext(save_vid)[0] + '-{}.mp4'.format(n)
+            p.startStateLogging(p.STATE_LOGGING_VIDEO_MP4, save_vid_path)
         if render and rrc_utils is None:
             env.render()
             time.sleep(1e-3)
@@ -156,10 +161,12 @@ if __name__ == '__main__':
     parser.add_argument('--itr', '-i', type=int, default=-1)
     parser.add_argument('--deterministic', '-d', action='store_true')
     parser.add_argument('--env_fn', type=str)
+    parser.add_argument('--save_vid', type=str)
     args = parser.parse_args()
     env, get_action = load_policy_and_env(args.fpath,
                                           args.itr if args.itr >=0 else 'last',
                                           args.deterministic)
     if not args.norender and rrc_utils is not None:
         env.unwrapped.visualization = True
-    run_policy(env, get_action, args.len, args.episodes, not(args.norender))
+    run_policy(env, get_action, args.len, args.episodes, not(args.norender),
+               args.save_vid)
