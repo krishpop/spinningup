@@ -4,15 +4,14 @@ from gym import wrappers
 import functools
 from gym.envs.registration import register
 
-from rrc_iprl_package.envs import cube_env as cube_env_rp
-from rrc_iprl_package.envs import custom_env as custom_env_rp
-from rrc_iprl_package.envs import env_wrappers
-
 phase = 2
 
 if phase == 1:
     from rrc_simulation.gym_wrapper.envs import cube_env, custom_env
-    from rrc_simulation.tasks import move_cube
+elif phase == 2:
+    from rrc_iprl_package.envs import cube_env
+    from rrc_iprl_package.envs import custom_env
+    from rrc_iprl_package.envs import env_wrappers
 
 
 registered_envs = [spec.id for spec in gym.envs.registry.all()]
@@ -41,12 +40,12 @@ elif phase == 2:
     if "real_robot_challenge_phase_2-v1" not in registered_envs:
         register(
             id="real_robot_challenge_phase_2-v1",
-            entry_point=cube_env_rp.RealRobotCubeEnv
+            entry_point=cube_env.RealRobotCubeEnv
             )
     if "real_robot_challenge_phase_2-v2" not in registered_envs:
         register(
             id="real_robot_challenge_phase_2-v2",
-            entry_point=cube_env_rp.PushCubeEnv
+            entry_point=cube_env.PushCubeEnv
             )
 
 
@@ -311,6 +310,6 @@ p2_reorient_env_fn = make_env_fn(
         p2_env_str,
         [p2_rel_scaled_wrapper] + p2_final_wrappers_relgoal,
         initializer=p2_fixed_reorient,
-        action_type=cube_env_rp.ActionType.TORQUE,
+        action_type=cube_env.ActionType.TORQUE,
         frameskip=5)
 

@@ -1,4 +1,3 @@
-from spinup.utils import rrc_utils
 import functools
 import gym
 import numpy as np
@@ -7,11 +6,11 @@ import torch.nn as nn
 from gym import wrappers
 from spinup.utils.run_utils import ExperimentGrid
 from spinup import ppo_pytorch, sac_pytorch, td3_pytorch
-from rrc_simulation.gym_wrapper.envs import cube_env, custom_env
+from rrc_iprl_package.envs import cube_env, env_wrappers, rrc_utils
 
 
-FRAMESKIP = 10
-EPLEN = 100
+FRAMESKIP = 15
+EPLEN = 6 * 1000 // FRAMESKIP
 
 rl_algs = {'sac': sac_pytorch, 'ppo': ppo_pytorch, 'td3': td3_pytorch}
 
@@ -20,60 +19,62 @@ def run_rl_alg(alg_name='ppo', pos_coef=1., ori_coef=.5, ori_thresh=np.pi, dist_
             ep_len=EPLEN, frameskip=FRAMESKIP, rew_fn='exp',
             sample_radius=0.09, ac_wrappers=[], relative=(False, False, False),
             lim_pen=0., **alg_kwargs):
-    env_fn = None # rrc_utils.recenter_ppo_env_fn
+    env_fn = None # rrc_utils.p2_reorient_env_fn
     early_stop = rrc_utils.success_rate_early_stopping
     if env_fn is None:
         scaled_ac = 'scaled' in ac_wrappers
         task_space = 'task' in ac_wrappers
         step_rew = 'step' in ac_wrappers
         sa_relative, ts_relative, goal_relative = relative
-        env_str = 'real_robot_challenge_phase_1-v3'
+        env_str = 'real_robot_challenge_phase_2-v2'
         action_type = cube_env.ActionType.POSITION
-        rew_wrappers = [functools.partial(custom_env.CubeRewardWrapper,
+        rew_wrappers = [functools.partial(env_wrappers.CubeRewardWrapper,
                                                pos_coef=pos_coef, ori_coef=ori_coef,
                                                ac_norm_pen=ac_norm_pen, fingertip_coef=fingertip_coef,
                                                rew_fn=rew_fn, augment_reward=augment_rew)]
         if step_rew:
-            rew_wrappers.append(custom_env.StepRewardWrapper)
-        rew_wrappers.append(functools.partial(custom_env.ReorientWrapper,
+            rew_wrappers.append(env_wrappers.StepRewardWrapper)
+        rew_wrappers.append(functools.partial(env_wrappers.ReorientWrapper,
                                               goal_env=False, dist_thresh=dist_thresh,
                                               ori_thresh=ori_thresh))
         final_wrappers = []
         if scaled_ac:
-            final_wrappers.append(functools.partial(custom_env.ScaledActionWrapper,
+            final_wrappers.append(functools.partial(env_wrappers.ScaledActionWrapper,
                                   goal_env=False, relative=sa_relative,
                                   lim_penalty=lim_pen))
         if goal_relative:
-            final_wrappers.append(custom_env.RelativeGoalWrapper)
+            final_wrappers.append(env_wrappers.RelativeGoalWrapper)
 
         final_wrappers += [functools.partial(wrappers.TimeLimit, max_episode_steps=ep_len),
-                           rrc_utils.reorient_log_info_wrapper,
+                           rrc_utils.p2_log_info_wrapper,
                            wrappers.ClipAction, wrappers.FlattenObservation]
-        env_wrappers = []
+        ewrappers = []
         if task_space:
             assert not scaled_ac, 'Can only use TaskSpaceWrapper OR ScaledActionWrapper'
-            env_wrappers.append(functools.partial(custom_env.TaskSpaceWrapper,
-                                relative=ts_relative))
+            ewrappers.append(functools.partial(env_wrappers.TaskSpaceWrapper,
+                                                  relative=ts_relative))
             action_type = cube_env.ActionType.TORQUE
-        env_wrappers += rew_wrappers + final_wrappers
+        ewrappers += rew_wrappers + final_wrappers
 
-        initializer = custom_env.ReorientInitializer(1, sample_radius)
-        env_fn = rrc_utils.make_env_fn(env_str, env_wrappers,
-                                       initializer=initializer,
+        initializer = env_wrappers.ReorientInitializer(1, sample_radius)
+        env_fn = rrc_utils.make_env_fn(env_str, ewrappers,
+                                       initializer=rrc_utils.p2_fixed_reorient, # initializer,
                                        action_type=action_type,
-                                       visualization=False, frameskip=frameskip)
-    rl_alg = RL_ALGS.get(alg_name)
+                                       frameskip=frameskip)
+    rl_alg = rl_algs.get(alg_name)
     assert rl_alg is not None, 'alg_name {} is not valid'.format(alg_name)
-    rl_alg(env_fn=env_fn, info_kwargs=rrc_utils.reorient_info_kwargs,
+    rl_alg(env_fn=env_fn, info_kwargs=rrc_utils.p2_info_kwargs,
                 early_stopping_fn=early_stop ,**alg_kwargs)
 
 
 if __name__ == '__main__':
     import argparse
     parser = argparse.ArgumentParser()
+    parser.add_argument('--alg', type=str, default='ppo')
     parser.add_argument('--cpu', type=int, default=6)
     parser.add_argument('--num_runs', type=int, default=1)
     parser.add_argument('--steps_per_epoch', type=int, default=None)
+    parser.add_argument('--epochs', type=int, default=250)
     parser.add_argument('--exp_name', type=str, default='ppo-reorient')
     parser.add_argument('--data_dir', type=str, default=None)
     parser.add_argument('--datestamp', '--dt', action='store_true')
@@ -102,7 +103,8 @@ if __name__ == '__main__':
 
     eg = ExperimentGrid(name=args.exp_name)
     eg.add('seed', [10*i for i in range(args.num_runs)])
-    eg.add('epochs', 250)
+    eg.add('epochs', args.epochs)
+    eg.add('alg_name', args.alg)
     if args.alg == 'sac':
         if args.replay_size:
             eg.add('replay_size', args.replay_size, 'rbsize')
@@ -131,7 +133,7 @@ if __name__ == '__main__':
     if args.ep_len:
         eg.add('ep_len', args.ep_len, 'el')
 
-    eg.add('ac_wrappers', [('scaled',), ('scaled', 'step')], 'acw')
+    eg.add('ac_wrappers', [('scaled')], 'acw')
     # relative = [args.relative_scaledwrapper, args.relative_taskwrapper, args.relative_goalwrapper]
     # eg.add('relative', [relative], 'rel')
     eg.run(run_rl_alg, num_cpu=args.cpu, data_dir=args.data_dir,
