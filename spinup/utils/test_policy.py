@@ -5,13 +5,16 @@ import os.path as osp
 import tensorflow as tf
 import torch
 import pybullet as p
+import gym
 from spinup import EpochLogger
+from spinup import run_rrc
 from spinup.utils.logx import restore_tf_graph
 
 try:
-    from spinup.utils import rrc_utils
+    from rrc_iprl_package.envs import rrc_utils, custom_env
 except ImportError:
-    rrc_utils = None
+    print("failed to import rrc_utils!")
+    custom_env = rrc_utils = None
 
 
 
@@ -65,7 +68,8 @@ def load_policy_and_env(fpath, itr='last', deterministic=False):
     try:
         state = joblib.load(osp.join(fpath, 'vars'+itr+'.pkl'))
         env = state['env']
-    except:
+    except Exception as e:
+        print("Failed to load env! Got error: {}".format(str(e)))
         env = None
 
     return env, get_action
@@ -167,6 +171,14 @@ if __name__ == '__main__':
                                           args.itr if args.itr >=0 else 'last',
                                           args.deterministic)
     if not args.norender and rrc_utils is not None:
+        if env is None:
+            ac_wrappers = ['scaled']
+            if 'nostep' not in args.fpath:
+                ac_wrappers.append('step')
+            env_fn = run_rrc.build_env_fn(ac_wrappers=ac_wrappers)
+            env = env_fn()
+        else:
+            env = run_rrc.build_env_fn(ac_wrappers=['scaled'])()
         env.unwrapped.visualization = True
     run_policy(env, get_action, args.len, args.episodes, not(args.norender),
                args.save_vid)

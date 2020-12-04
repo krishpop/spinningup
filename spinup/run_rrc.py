@@ -14,6 +14,54 @@ EPLEN = 6 * 1000 // FRAMESKIP
 
 rl_algs = {'sac': sac_pytorch, 'ppo': ppo_pytorch, 'td3': td3_pytorch}
 
+
+def build_env_fn(pos_coef=1., ori_coef=.5, ori_thresh=np.pi, dist_thresh=0.06,
+            ac_norm_pen=0, fingertip_coef=0, augment_rew=True,
+            ep_len=EPLEN, frameskip=FRAMESKIP, rew_fn='exp',
+            sample_radius=0.09, ac_wrappers=[], relative=(False, False, False),
+            lim_pen=0.,):
+    scaled_ac = 'scaled' in ac_wrappers
+    task_space = 'task' in ac_wrappers
+    step_rew = 'step' in ac_wrappers
+    sa_relative, ts_relative, goal_relative = relative
+    env_str = 'real_robot_challenge_phase_2-v2'
+    action_type = cube_env.ActionType.POSITION
+    rew_wrappers = [functools.partial(env_wrappers.CubeRewardWrapper,
+                                           pos_coef=pos_coef, ori_coef=ori_coef,
+                                           ac_norm_pen=ac_norm_pen, fingertip_coef=fingertip_coef,
+                                           rew_fn=rew_fn, augment_reward=augment_rew)]
+    if step_rew:
+        rew_wrappers.append(env_wrappers.StepRewardWrapper)
+    rew_wrappers.append(functools.partial(env_wrappers.ReorientWrapper,
+                                          goal_env=False, dist_thresh=dist_thresh,
+                                          ori_thresh=ori_thresh))
+    final_wrappers = []
+    if scaled_ac:
+        final_wrappers.append(functools.partial(env_wrappers.ScaledActionWrapper,
+                              goal_env=False, relative=sa_relative,
+                              lim_penalty=lim_pen))
+    if goal_relative:
+        final_wrappers.append(env_wrappers.RelativeGoalWrapper)
+
+    final_wrappers += [functools.partial(wrappers.TimeLimit, max_episode_steps=ep_len),
+                       rrc_utils.p2_log_info_wrapper,
+                       wrappers.ClipAction, wrappers.FlattenObservation]
+    ewrappers = []
+    if task_space:
+        assert not scaled_ac, 'Can only use TaskSpaceWrapper OR ScaledActionWrapper'
+        ewrappers.append(functools.partial(env_wrappers.TaskSpaceWrapper,
+                                              relative=ts_relative))
+        action_type = cube_env.ActionType.TORQUE
+    ewrappers += rew_wrappers + final_wrappers
+
+    initializer = env_wrappers.ReorientInitializer(1, sample_radius)
+    env_fn = rrc_utils.make_env_fn(env_str, ewrappers,
+                                   initializer=rrc_utils.p2_fixed_reorient, # initializer,
+                                   action_type=action_type,
+                                   frameskip=frameskip)
+    return env_fn
+
+
 def run_rl_alg(alg_name='ppo', pos_coef=1., ori_coef=.5, ori_thresh=np.pi, dist_thresh=0.06,
             ac_norm_pen=0, fingertip_coef=0, augment_rew=True,
             ep_len=EPLEN, frameskip=FRAMESKIP, rew_fn='exp',
@@ -22,45 +70,11 @@ def run_rl_alg(alg_name='ppo', pos_coef=1., ori_coef=.5, ori_thresh=np.pi, dist_
     env_fn = None # rrc_utils.p2_reorient_env_fn
     early_stop = rrc_utils.success_rate_early_stopping
     if env_fn is None:
-        scaled_ac = 'scaled' in ac_wrappers
-        task_space = 'task' in ac_wrappers
-        step_rew = 'step' in ac_wrappers
-        sa_relative, ts_relative, goal_relative = relative
-        env_str = 'real_robot_challenge_phase_2-v2'
-        action_type = cube_env.ActionType.POSITION
-        rew_wrappers = [functools.partial(env_wrappers.CubeRewardWrapper,
-                                               pos_coef=pos_coef, ori_coef=ori_coef,
-                                               ac_norm_pen=ac_norm_pen, fingertip_coef=fingertip_coef,
-                                               rew_fn=rew_fn, augment_reward=augment_rew)]
-        if step_rew:
-            rew_wrappers.append(env_wrappers.StepRewardWrapper)
-        rew_wrappers.append(functools.partial(env_wrappers.ReorientWrapper,
-                                              goal_env=False, dist_thresh=dist_thresh,
-                                              ori_thresh=ori_thresh))
-        final_wrappers = []
-        if scaled_ac:
-            final_wrappers.append(functools.partial(env_wrappers.ScaledActionWrapper,
-                                  goal_env=False, relative=sa_relative,
-                                  lim_penalty=lim_pen))
-        if goal_relative:
-            final_wrappers.append(env_wrappers.RelativeGoalWrapper)
-
-        final_wrappers += [functools.partial(wrappers.TimeLimit, max_episode_steps=ep_len),
-                           rrc_utils.p2_log_info_wrapper,
-                           wrappers.ClipAction, wrappers.FlattenObservation]
-        ewrappers = []
-        if task_space:
-            assert not scaled_ac, 'Can only use TaskSpaceWrapper OR ScaledActionWrapper'
-            ewrappers.append(functools.partial(env_wrappers.TaskSpaceWrapper,
-                                                  relative=ts_relative))
-            action_type = cube_env.ActionType.TORQUE
-        ewrappers += rew_wrappers + final_wrappers
-
-        initializer = env_wrappers.ReorientInitializer(1, sample_radius)
-        env_fn = rrc_utils.make_env_fn(env_str, ewrappers,
-                                       initializer=rrc_utils.p2_fixed_reorient, # initializer,
-                                       action_type=action_type,
-                                       frameskip=frameskip)
+        env_fn = build_env_fn(pos_coef, ori_coef, ori_thresh, dist_thresh,
+            ac_norm_pen, fingertip_coef, augment_rew,
+            ep_len, frameskip, rew_fn,
+            sample_radius, ac_wrappers, relative,
+            lim_pen)
     rl_alg = rl_algs.get(alg_name)
     assert rl_alg is not None, 'alg_name {} is not valid'.format(alg_name)
     rl_alg(env_fn=env_fn, info_kwargs=rrc_utils.p2_info_kwargs,
@@ -133,7 +147,7 @@ if __name__ == '__main__':
     if args.ep_len:
         eg.add('ep_len', args.ep_len, 'el')
 
-    eg.add('ac_wrappers', [('scaled')], 'acw')
+    eg.add('ac_wrappers', [('scaled', 'step')], 'acw')
     # relative = [args.relative_scaledwrapper, args.relative_taskwrapper, args.relative_goalwrapper]
     # eg.add('relative', [relative], 'rel')
     eg.run(run_rl_alg, num_cpu=args.cpu, data_dir=args.data_dir,
