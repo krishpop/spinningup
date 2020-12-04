@@ -10,7 +10,7 @@ from rrc_iprl_package.envs import cube_env, env_wrappers, rrc_utils
 
 
 FRAMESKIP = 15
-EPLEN = 6 * 1000 // FRAMESKIP
+EPLEN = 9 * 1000 // FRAMESKIP
 
 rl_algs = {'sac': sac_pytorch, 'ppo': ppo_pytorch, 'td3': td3_pytorch}
 
@@ -147,7 +147,7 @@ if __name__ == '__main__':
     if args.ep_len:
         eg.add('ep_len', args.ep_len, 'el')
 
-    eg.add('ac_wrappers', [('scaled', 'step')], 'acw')
+    eg.add('ac_wrappers', [('scaled')], 'acw')
     # relative = [args.relative_scaledwrapper, args.relative_taskwrapper, args.relative_goalwrapper]
     # eg.add('relative', [relative], 'rel')
     eg.run(run_rl_alg, num_cpu=args.cpu, data_dir=args.data_dir,
