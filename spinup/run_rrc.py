@@ -152,7 +152,7 @@ if __name__ == '__main__':
     if args.ep_len:
         eg.add('ep_len', args.ep_len, 'el')
 
-    eg.add('ac_wrappers', [('scaled')], 'acw')
+    eg.add('ac_wrappers', [('task',), ('task', 'step')], 'acw')
     # relative = [args.relative_scaledwrapper, args.relative_taskwrapper, args.relative_goalwrapper]
     # eg.add('relative', [relative], 'rel')
     eg.run(run_rl_alg, num_cpu=args.cpu, data_dir=args.data_dir,
