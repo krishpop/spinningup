@@ -69,8 +69,6 @@ def run_rl_alg(alg_name='ppo', pos_coef=1., ori_coef=.5, ori_thresh=np.pi, dist_
             lim_pen=0., **alg_kwargs):
     env_fn = None # rrc_utils.p2_reorient_env_fn
     early_stop = rrc_utils.success_rate_early_stopping
-    if alg_name != 'sac':
-        alg_kwargs.pop('replay_size')
     if env_fn is None:
         env_fn = build_env_fn(pos_coef, ori_coef, ori_thresh, dist_thresh,
             ac_norm_pen, fingertip_coef, augment_rew,
