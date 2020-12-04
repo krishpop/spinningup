@@ -3,6 +3,8 @@ import torch
 from torch.optim import Adam
 import gym
 import time
+import re
+import os.path as osp
 import spinup.algos.pytorch.ppo.core as core
 from spinup.utils.logx import EpochLogger
 from spinup.utils.mpi_pytorch import setup_pytorch_for_mpi, sync_params, mpi_avg_grads
@@ -89,7 +91,7 @@ def ppo(env_fn, actor_critic=core.MLPActorCritic, ac_kwargs=dict(), seed=0,
         steps_per_epoch=4000, epochs=50, gamma=0.99, clip_ratio=0.2, pi_lr=3e-4,
         vf_lr=1e-3, train_pi_iters=80, train_v_iters=80, lam=0.97, max_ep_len=1000,
         target_kl=0.01, logger_kwargs=dict(), info_kwargs=dict(), save_freq=10,
-        early_stopping_fn=None):
+        early_stopping_fn=None, load_path=None):
     """
     Proximal Policy Optimization (by clipping), 
 
@@ -140,58 +142,41 @@ def ppo(env_fn, actor_critic=core.MLPActorCritic, ac_kwargs=dict(), seed=0,
             ===========  ================  ======================================
             Symbol       Shape             Description
             ===========  ================  ======================================
-            ``v``        (batch,)          | Tensor containing the value estimates
-                                           | for the provided observations. (Critical: 
+            ``v``        (batch,)          | Tensor containing the value estimates | for the provided observations. (Critical: 
                                            | make sure to flatten this!)
-            ===========  ================  ======================================
+            ===========  ================  ====================================== 
 
+        ac_kwargs (dict): Any kwargs appropriate for the ActorCritic object you provided to PPO.
 
-        ac_kwargs (dict): Any kwargs appropriate for the ActorCritic object 
-            you provided to PPO.
-
-        seed (int): Seed for random number generators.
-
+        seed (int): Seed for random number generators.  
         steps_per_epoch (int): Number of steps of interaction (state-action pairs) 
-            for the agent and the environment in each epoch.
-
+            for the agent and the environment in each epoch.  
         epochs (int): Number of epochs of interaction (equivalent to
-            number of policy updates) to perform.
-
+            number of policy updates) to perform.  
         gamma (float): Discount factor. (Always between 0 and 1.)
-
-        clip_ratio (float): Hyperparameter for clipping in the policy objective.
-            Roughly: how far can the new policy go from the old policy while 
-            still profiting (improving the objective function)? The new policy 
-            can still go farther than the clip_ratio says, but it doesn't help
-            on the objective anymore. (Usually small, 0.1 to 0.3.) Typically
+clip_ratio (float): Hyperparameter for clipping in the policy objective.
+            Roughly: how far can the new policy go from the old policy while still profiting (improving the objective function)? The new policy 
+            can still go farther than the clip_ratio says, but it doesn't help on the objective anymore. (Usually small, 0.1 to 0.3.) Typically
             denoted by :math:`\epsilon`. 
+pi_lr (float): Learning rate for policy optimizer.
 
-        pi_lr (float): Learning rate for policy optimizer.
-
-        vf_lr (float): Learning rate for value function optimizer.
-
+        vf_lr (float): Learning rate for value function optimizer.  
         train_pi_iters (int): Maximum number of gradient descent steps to take 
-            on policy loss per epoch. (Early stopping may cause optimizer
-            to take fewer than this.)
+            on policy loss per epoch. (Early stopping may cause optimizer to take fewer than this.)
 
-        train_v_iters (int): Number of gradient descent steps to take on 
-            value function per epoch.
+        train_v_iters (int): Number of gradient descent steps to take on value function per epoch.
 
-        lam (float): Lambda for GAE-Lambda. (Always between 0 and 1,
-            close to 1.)
+        lam (float): Lambda for GAE-Lambda. (Always between 0 and 1, close to 1.)
 
-        max_ep_len (int): Maximum length of trajectory / episode / rollout.
-
-        target_kl (float): Roughly what KL divergence we think is appropriate
-            between new and old policies after an update. This will get used 
+        max_ep_len (int): Maximum length of trajectory / episode / rollout.  
+        target_kl (float): Roughly what KL divergence we think is appropriate between new and old policies after an update. This will get used 
             for early stopping. (Usually small, 0.01 or 0.05.)
+logger_kwargs (dict): Keyword args for EpochLogger.
 
-        logger_kwargs (dict): Keyword args for EpochLogger.
-
-        info_kwargs (dict): Additional info dict key to log.
-
+        info_kwargs (dict): Additional info dict key to log.  
         save_freq (int): How often (in terms of gap between epochs) to save
-            the current policy and value function.
+            the current policy and value function.  
+        load_path (str): Path to load pretrained model from 
 
     """
 
@@ -213,7 +198,17 @@ def ppo(env_fn, actor_critic=core.MLPActorCritic, ac_kwargs=dict(), seed=0,
     act_dim = env.action_space.shape
 
     # Create actor-critic module
-    ac = actor_critic(env.observation_space, env.action_space, **ac_kwargs)
+    if load_path:
+        ac = torch.load(load_path)
+        p = re.compile('\d+')
+        start_ep = int(p.search(osp.split(load_path)[-1]).group())
+    else:
+        ac = actor_critic(env.observation_space, env.action_space, **ac_kwargs)
+        start_ep = 0
+        if start_ep > epochs:
+            epochs += start_ep
+            logger.log("\nWARNING: epochs were less than loaded policy eps, so "
+                       "adding {} epochs to total {}".format(start_ep, epochs), color='yellow')
 
     # Sync params across processes
     sync_params(ac)
@@ -298,7 +293,7 @@ def ppo(env_fn, actor_critic=core.MLPActorCritic, ac_kwargs=dict(), seed=0,
     o, ep_ret, ep_len = env.reset(), 0, 0
 
     # Main loop: collect experience in env and update/log each epoch
-    for epoch in range(epochs):
+    for epoch in range(start_ep, epochs):
         for t in range(local_steps_per_epoch):
             a, v, logp = ac.step(torch.as_tensor(o, dtype=torch.float32))
 

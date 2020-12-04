@@ -69,6 +69,8 @@ def run_rl_alg(alg_name='ppo', pos_coef=1., ori_coef=.5, ori_thresh=np.pi, dist_
             lim_pen=0., **alg_kwargs):
     env_fn = None # rrc_utils.p2_reorient_env_fn
     early_stop = rrc_utils.success_rate_early_stopping
+    if alg_name != 'sac':
+        alg_kwargs.pop('replay_size')
     if env_fn is None:
         env_fn = build_env_fn(pos_coef, ori_coef, ori_thresh, dist_thresh,
             ac_norm_pen, fingertip_coef, augment_rew,
@@ -92,6 +94,7 @@ if __name__ == '__main__':
     parser.add_argument('--exp_name', type=str, default='ppo-reorient')
     parser.add_argument('--data_dir', type=str, default=None)
     parser.add_argument('--datestamp', '--dt', action='store_true')
+    parser.add_argument('--load_path', type=str, default=None, help='path to pre-trained model')
 
     # experiment grid arguments
     parser.add_argument('--frameskip', '--f', type=int, nargs='*', default=[])
@@ -124,6 +127,8 @@ if __name__ == '__main__':
             eg.add('replay_size', args.replay_size, 'rbsize')
     if args.steps_per_epoch:
         eg.add('steps_per_epoch', args.steps_per_epoch)
+    if args.load_path:
+        eg.add('load_path', args.load_path)
     eg.add('ac_kwargs:hidden_sizes', [(64,64)], 'hid')
     eg.add('ac_kwargs:activation', [nn.ReLU], 'ac-act')
     if args.frameskip:
