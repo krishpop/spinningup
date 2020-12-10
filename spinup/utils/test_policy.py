@@ -179,7 +179,8 @@ if __name__ == '__main__':
             env_fn = run_rrc.build_env_fn(ac_wrappers=ac_wrappers)
             env = env_fn()
         else:
-            env = run_rrc.build_env_fn(ac_wrappers=['scaled'])()
+            env = run_rrc.build_env_fn(ac_wrappers=['scaled'], pos_coef=.5, ori_coef=.5,
+                                       relative=(False,False,True))()
         env.unwrapped.visualization = True
     run_policy(env, get_action, args.len, args.episodes, not(args.norender),
                args.save_vid)
