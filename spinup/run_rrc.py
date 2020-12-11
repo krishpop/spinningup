@@ -18,7 +18,7 @@ rl_algs = {'sac': sac_pytorch, 'ppo': ppo_pytorch, 'td3': td3_pytorch}
 def run_rl_alg(alg_name='ppo', pos_coef=.1, ori_coef=.1, ori_thresh=np.pi/6, dist_thresh=0.09,
             ac_norm_pen=0.1, fingertip_coef=0.1, augment_rew=True,
             ep_len=EPLEN, frameskip=FRAMESKIP, rew_fn='exp',
-            sample_radius=0.09, ac_wrappers=[], relative=(False, False, True),
+            sample_radius=0.09, ac_wrappers=[], relative=(True, False, True),
             lim_pen=0., keep_goal=False, use_quat=False, **alg_kwargs):
     env_fn = None # rrc_utils.p2_reorient_env_fn
     early_stop = None # rrc_utils.success_rate_early_stopping
@@ -68,8 +68,8 @@ if __name__ == '__main__':
     parser.add_argument('--relative_goalwrapper', '--rgw', action='store_true')
     parser.add_argument('--relative_taskwrapper', '--rtw', action='store_true')
     parser.add_argument('--relative_scaledwrapper', '--rsw', action='store_true')
-    parser.add_argument('--keep_goal', '--kg', nargs='*', type=bool, default=[False])
-    parser.add_argument('--use_quat', '--uq', nargs='*', type=bool, default=[False, True])
+    parser.add_argument('--keep_goal', '--kg', nargs='*', type=bool, default=[])
+    parser.add_argument('--use_quat', '--uq', nargs='*', type=bool, default=[])
 
     args = parser.parse_args()
 
@@ -111,7 +111,7 @@ if __name__ == '__main__':
     if args.use_quat:
         eg.add('use_quat', args.use_quat, 'uq')
 
-    eg.add('ac_wrappers', [('scaled',)], 'acw')
+    eg.add('ac_wrappers', [('scaled',), ('task',)], 'acw')
     # relative = [args.relative_scaledwrapper, args.relative_taskwrapper, args.relative_goalwrapper]
     # eg.add('relative', [relative], 'rel')
     eg.run(run_rl_alg, num_cpu=args.cpu, data_dir=args.data_dir,
