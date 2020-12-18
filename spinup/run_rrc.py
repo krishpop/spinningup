@@ -18,8 +18,9 @@ rl_algs = {'sac': sac_pytorch, 'ppo': ppo_pytorch, 'td3': td3_pytorch}
 def run_rl_alg(alg_name='ppo', pos_coef=.1, ori_coef=.1, ori_thresh=np.pi/6, dist_thresh=0.09,
             ac_norm_pen=0.1, fingertip_coef=0.1, augment_rew=True,
             ep_len=EPLEN, frameskip=FRAMESKIP, rew_fn='exp',
-            sample_radius=0.09, ac_wrappers=[], relative=(True, False, True),
-            lim_pen=0., keep_goal=False, use_quat=False, **alg_kwargs):
+            sample_radius=0.09, ac_wrappers=[], sa_relative=False, ts_relative=True,
+            goal_relative=True, lim_pen=0.001, keep_goal=False, use_quat=False,
+            **alg_kwargs):
     env_fn = None # rrc_utils.p2_reorient_env_fn
     early_stop = None # rrc_utils.success_rate_early_stopping
     if env_fn is None:
@@ -28,7 +29,8 @@ def run_rl_alg(alg_name='ppo', pos_coef=.1, ori_coef=.1, ori_thresh=np.pi/6, dis
                 ac_norm_pen=ac_norm_pen, fingertip_coef=fingertip_coef,
                 augment_rew=augment_rew, ep_len=ep_len, frameskip=frameskip, 
                 rew_fn=rew_fn, sample_radius=sample_radius, ac_wrappers=ac_wrappers, 
-                relative=relative, lim_pen=lim_pen, keep_goal=keep_goal,
+                sa_relative=sa_relative, ts_relative=ts_relative,
+                goal_relative=goal_relative, lim_pen=lim_pen, keep_goal=keep_goal,
                 use_quat=use_quat)
     rl_alg = rl_algs.get(alg_name)
     assert rl_alg is not None, 'alg_name {} is not valid'.format(alg_name)
@@ -65,9 +67,9 @@ if __name__ == '__main__':
     parser.add_argument('--scaled_acwrapper', '--saw', action='store_true')
     parser.add_argument('--task_acwrapper', '--taw', action='store_true')
     parser.add_argument('--step_rewwrapper', '--srw', action='store_true')
-    parser.add_argument('--relative_goalwrapper', '--rgw', action='store_true')
-    parser.add_argument('--relative_taskwrapper', '--rtw', action='store_true')
-    parser.add_argument('--relative_scaledwrapper', '--rsw', action='store_true')
+    parser.add_argument('--relative_goalwrapper', '--rgw', nargs='*', type=bool, default=[])
+    parser.add_argument('--relative_taskwrapper', '--rtw', nargs='*', type=bool, default=[])
+    parser.add_argument('--relative_scaledwrapper', '--rsw', nargs='*', type=bool, default=[])
     parser.add_argument('--keep_goal', '--kg', nargs='*', type=bool, default=[])
     parser.add_argument('--use_quat', '--uq', nargs='*', type=bool, default=[])
 
@@ -110,8 +112,15 @@ if __name__ == '__main__':
         eg.add('keep_goal', args.keep_goal, 'kg')
     if args.use_quat:
         eg.add('use_quat', args.use_quat, 'uq')
+    if args.relative_scaledwrapper:
+        eg.add('sa_relative', args.relative_scaledwrapper, 'rsw')
+    if args.relative_taskwrapper:
+        eg.add('ts_relative', args.relative_taskwrapper, 'rtw')
+    if args.relative_goalwrapper:
+        eg.add('goal_relative', args.relative_goalwrapper, 'rgw')
 
-    eg.add('ac_wrappers', [('scaled',), ('task',)], 'acw')
+
+    eg.add('ac_wrappers', [('task',), ('scaled',)], 'acw')
     # relative = [args.relative_scaledwrapper, args.relative_taskwrapper, args.relative_goalwrapper]
     # eg.add('relative', [relative], 'rel')
     eg.run(run_rl_alg, num_cpu=args.cpu, data_dir=args.data_dir,
