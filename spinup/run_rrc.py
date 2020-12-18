@@ -60,6 +60,8 @@ if __name__ == '__main__':
     parser.add_argument('--ac_norm_pen', type=float, nargs='*', default=[])
     parser.add_argument('--lim_penalty', type=float, nargs='*', default=[])
     parser.add_argument('--ep_len', type=float, nargs='*', default=[])
+    parser.add_argument('--keep_goal', '--kg', nargs='*', type=bool, default=[])
+    parser.add_argument('--use_quat', '--uq', nargs='*', type=bool, default=[])
 
     # run PPO wrapper arguments
     parser.add_argument('--scaled_acwrapper', '--saw', action='store_true')
@@ -68,8 +70,6 @@ if __name__ == '__main__':
     parser.add_argument('--relative_goalwrapper', '--rgw', action='store_true')
     parser.add_argument('--relative_taskwrapper', '--rtw', action='store_true')
     parser.add_argument('--relative_scaledwrapper', '--rsw', action='store_true')
-    parser.add_argument('--keep_goal', '--kg', nargs='*', type=bool, default=[])
-    parser.add_argument('--use_quat', '--uq', nargs='*', type=bool, default=[])
 
     args = parser.parse_args()
 
@@ -111,7 +111,17 @@ if __name__ == '__main__':
     if args.use_quat:
         eg.add('use_quat', args.use_quat, 'uq')
 
-    eg.add('ac_wrappers', [('scaled',), ('task',)], 'acw')
+    ac_wrappers = [('task',)]
+    ac_wrap = []
+    if args.scaled_acwrapper:
+        ac_wrap.append('scaled')
+    if args.task_acwrapper:
+        ac_wrap.append('task')
+    if args.step_rewwrapper:
+        ac_wrap.append('step')
+    ac_wrappers.append(tuple(ac_wrap))
+
+    eg.add('ac_wrappers', ac_wrappers, 'acw')
     # relative = [args.relative_scaledwrapper, args.relative_taskwrapper, args.relative_goalwrapper]
     # eg.add('relative', [relative], 'rel')
     eg.run(run_rl_alg, num_cpu=args.cpu, data_dir=args.data_dir,
