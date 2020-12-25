@@ -20,7 +20,7 @@ def run_rl_alg(alg_name='ppo', pos_coef=.1, ori_coef=.1, ori_thresh=np.pi/6, dis
             ep_len=EPLEN, frameskip=FRAMESKIP, rew_fn='exp',
             sample_radius=0.09, ac_wrappers=[], sa_relative=False, ts_relative=True,
             goal_relative=True, lim_pen=0.001, keep_goal=False, use_quat=False,
-            **alg_kwargs):
+            cube_rew=False, step_rew=False, **alg_kwargs):
     env_fn = None # rrc_utils.p2_reorient_env_fn
     early_stop = None # rrc_utils.success_rate_early_stopping
     if env_fn is None:
@@ -31,7 +31,7 @@ def run_rl_alg(alg_name='ppo', pos_coef=.1, ori_coef=.1, ori_thresh=np.pi/6, dis
                 rew_fn=rew_fn, sample_radius=sample_radius, ac_wrappers=ac_wrappers, 
                 sa_relative=sa_relative, ts_relative=ts_relative,
                 goal_relative=goal_relative, lim_pen=lim_pen, keep_goal=keep_goal,
-                use_quat=use_quat)
+                use_quat=use_quat, cube_rew=cube_rew, step_rew=step_rew)
     rl_alg = rl_algs.get(alg_name)
     assert rl_alg is not None, 'alg_name {} is not valid'.format(alg_name)
     rl_alg(env_fn=env_fn, info_kwargs=rrc_utils.p2_info_kwargs,
@@ -72,6 +72,8 @@ if __name__ == '__main__':
     parser.add_argument('--relative_scaledwrapper', '--rsw', nargs='*', type=bool, default=[])
     parser.add_argument('--keep_goal', '--kg', nargs='*', type=bool, default=[])
     parser.add_argument('--use_quat', '--uq', nargs='*', type=bool, default=[])
+    parser.add_argument('--cube_rew', action='store_true')
+    parser.add_argument('--step_rew', action='store_true')
 
     args = parser.parse_args()
 
@@ -118,9 +120,12 @@ if __name__ == '__main__':
         eg.add('ts_relative', args.relative_taskwrapper, 'rtw')
     if args.relative_goalwrapper:
         eg.add('goal_relative', args.relative_goalwrapper, 'rgw')
+    if args.cube_rew:
+        eg.add('cube_rew', [args.cube_rew])
+    if args.step_rew:
+        eg.add('step_rew', [args.step_rew])
 
-
-    eg.add('ac_wrappers', [('task',), ('scaled',)], 'acw')
+    eg.add('ac_wrappers', [('task',)], 'acw')
     # relative = [args.relative_scaledwrapper, args.relative_taskwrapper, args.relative_goalwrapper]
     # eg.add('relative', [relative], 'rel')
     eg.run(run_rl_alg, num_cpu=args.cpu, data_dir=args.data_dir,
