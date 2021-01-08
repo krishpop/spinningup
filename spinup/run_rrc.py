@@ -18,20 +18,23 @@ rl_algs = {'sac': sac_pytorch, 'ppo': ppo_pytorch, 'td3': td3_pytorch}
 def run_rl_alg(alg_name='ppo', pos_coef=.1, ori_coef=.1, ori_thresh=np.pi/6, dist_thresh=0.09,
             ac_norm_pen=0.1, fingertip_coef=0.1, augment_rew=True,
             ep_len=EPLEN, frameskip=FRAMESKIP, rew_fn='exp',
-            sample_radius=0.09, ac_wrappers=[], sa_relative=False, ts_relative=True,
+            sample_radius=0.09, sa_relative=False, ts_relative=True,
             goal_relative=True, lim_pen=0.001, keep_goal=False, use_quat=False,
-            cube_rew=False, step_rew=False, **alg_kwargs):
+            cube_rew=False, step_rew=False, reorient_env=False, scaled_ac=False,
+            task_space=False, **alg_kwargs):
     env_fn = None # rrc_utils.p2_reorient_env_fn
     early_stop = None # rrc_utils.success_rate_early_stopping
     if env_fn is None:
-        env_fn = rrc_utils.build_env_fn(pos_coef=pos_coef, ori_coef=ori_coef, 
+        env_fn = rrc_utils.build_env_fn(pos_coef=pos_coef, ori_coef=ori_coef,
                 ori_thresh=ori_thresh, dist_thresh=dist_thresh,
                 ac_norm_pen=ac_norm_pen, fingertip_coef=fingertip_coef,
-                augment_rew=augment_rew, ep_len=ep_len, frameskip=frameskip, 
-                rew_fn=rew_fn, sample_radius=sample_radius, ac_wrappers=ac_wrappers, 
+                augment_rew=augment_rew, ep_len=ep_len, frameskip=frameskip,
+                rew_fn=rew_fn, sample_radius=sample_radius,
                 sa_relative=sa_relative, ts_relative=ts_relative,
                 goal_relative=goal_relative, lim_pen=lim_pen, keep_goal=keep_goal,
-                use_quat=use_quat, cube_rew=cube_rew, step_rew=step_rew)
+                use_quat=use_quat, cube_rew=cube_rew, step_rew=step_rew,
+                reorient_env=reorient_env, scaled_ac=scaled_ac,
+                task_space=task_space)
     rl_alg = rl_algs.get(alg_name)
     assert rl_alg is not None, 'alg_name {} is not valid'.format(alg_name)
     rl_alg(env_fn=env_fn, info_kwargs=rrc_utils.p2_info_kwargs,
@@ -125,7 +128,6 @@ if __name__ == '__main__':
     if args.step_rew:
         eg.add('step_rew', [args.step_rew])
 
-    eg.add('ac_wrappers', [('task',)], 'acw')
     # relative = [args.relative_scaledwrapper, args.relative_taskwrapper, args.relative_goalwrapper]
     # eg.add('relative', [relative], 'rel')
     eg.run(run_rl_alg, num_cpu=args.cpu, data_dir=args.data_dir,
