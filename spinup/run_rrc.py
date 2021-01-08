@@ -65,6 +65,8 @@ if __name__ == '__main__':
     parser.add_argument('--ac_norm_pen', type=float, nargs='*', default=[])
     parser.add_argument('--lim_penalty', type=float, nargs='*', default=[])
     parser.add_argument('--ep_len', type=float, nargs='*', default=[])
+    parser.add_argument('--keep_goal', '--kg', nargs='*', type=bool, default=[])
+    parser.add_argument('--use_quat', '--uq', nargs='*', type=bool, default=[])
 
     # run PPO wrapper arguments
     parser.add_argument('--scaled_acwrapper', '--saw', action='store_true')
@@ -128,7 +130,11 @@ if __name__ == '__main__':
     if args.step_rew:
         eg.add('step_rew', [args.step_rew])
 
-    # relative = [args.relative_scaledwrapper, args.relative_taskwrapper, args.relative_goalwrapper]
-    # eg.add('relative', [relative], 'rel')
+    if args.scaled_acwrapper:
+        eg.add('scaled_ac', args.scaled_acwrapper)
+    if args.task_acwrapper:
+        eg.add('task_space', args.task_acwrapper)
+    if args.step_rewwrapper:
+        eg.add('step_rew', args.step_rewwrapper)
     eg.run(run_rl_alg, num_cpu=args.cpu, data_dir=args.data_dir,
            datestamp=args.datestamp)
