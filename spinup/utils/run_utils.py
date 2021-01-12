@@ -142,18 +142,6 @@ def call_experiment(exp_name, thunk, seed=0, num_cpu=1, data_dir=None,
     print(json.dumps(kwargs_json, separators=(',',':\t'), indent=4, sort_keys=True))
     print('\n')
 
-    # Set up logger output directory
-    if 'logger_kwargs' not in kwargs:
-        kwargs['logger_kwargs'] = setup_logger_kwargs(exp_name, seed, data_dir, datestamp)
-    else: print('Note: Call experiment is not handling logger_kwargs.\n')
-
-    if kwargs['logger_kwargs']['output_dir'] is not None:
-        if not osp.exists(kwargs['logger_kwargs']['output_dir']):
-            os.makedirs(kwargs['logger_kwargs']['output_dir'])
-        with open(osp.join(kwargs['logger_kwargs']['output_dir'], 
-                           'experiment_kwargs.json'), 'w') as f:
-            json.dump(kwargs_json, f)
-
     def thunk_plus():
         # Make 'env_fn' from 'env_name'
         if 'env_name' in kwargs:
@@ -503,8 +491,24 @@ class ExperimentGrid:
         # Print info about self.
         self.print()
 
+        for k, v, sh in zip(self.keys, self.vals, self.shs):
+            color_k = colorize(k.ljust(40), color='cyan', bold=True)
+            print('', color_k, '['+sh+']' if sh is not None else '', '\n')
+            for i, val in enumerate(v):
+                print('\t' + str(convert_json(val)))
+            print()
+
         # Make the list of all variants.
         variants = self.variants()
+
+        # save variants, keys, and vals to dict
+        if data_dir:
+            vars_dict = dict(zip(self.keys, self.vals))
+            vars_dict['variants'] = variants
+            if not osp.exists(data_dir):
+                os.makedirs(data_dir)
+            with open(osp.join(data_dir, 'experiment_kwargs.json'), 'w') as f:
+                json.dump(vars_dict, f, indent=4)
 
         # Print variant names for the user.
         var_names = set([self.variant_name(var) for var in variants])
