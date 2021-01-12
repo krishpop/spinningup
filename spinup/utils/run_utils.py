@@ -145,8 +145,14 @@ def call_experiment(exp_name, thunk, seed=0, num_cpu=1, data_dir=None,
     # Set up logger output directory
     if 'logger_kwargs' not in kwargs:
         kwargs['logger_kwargs'] = setup_logger_kwargs(exp_name, seed, data_dir, datestamp)
-    else:
-        print('Note: Call experiment is not handling logger_kwargs.\n')
+    else: print('Note: Call experiment is not handling logger_kwargs.\n')
+
+    if kwargs['logger_kwargs']['output_dir'] is not None:
+        if not osp.exists(kwargs['logger_kwargs']['output_dir']):
+            os.makedirs(kwargs['logger_kwargs']['output_dir'])
+        with open(osp.join(kwargs['logger_kwargs']['output_dir'], 
+                           'experiment_kwargs.json'), 'w') as f:
+            json.dump(kwargs_json, f)
 
     def thunk_plus():
         # Make 'env_fn' from 'env_name'

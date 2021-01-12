@@ -75,10 +75,9 @@ if __name__ == '__main__':
     parser.add_argument('--relative_goalwrapper', '--rgw', nargs='*', type=bool, default=[])
     parser.add_argument('--relative_taskwrapper', '--rtw', nargs='*', type=bool, default=[])
     parser.add_argument('--relative_scaledwrapper', '--rsw', nargs='*', type=bool, default=[])
-    parser.add_argument('--keep_goal', '--kg', nargs='*', type=bool, default=[])
-    parser.add_argument('--use_quat', '--uq', nargs='*', type=bool, default=[])
     parser.add_argument('--cube_rew', action='store_true')
     parser.add_argument('--step_rew', action='store_true')
+    parser.add_argument('--rew_fn', type=str)
 
     args = parser.parse_args()
 
@@ -129,6 +128,8 @@ if __name__ == '__main__':
         eg.add('cube_rew', [args.cube_rew])
     if args.step_rew:
         eg.add('step_rew', [args.step_rew])
+    if args.rew_fn:
+        eg.add('rew_fn', args.rew_fn)
 
     if args.scaled_acwrapper:
         eg.add('scaled_ac', args.scaled_acwrapper)
