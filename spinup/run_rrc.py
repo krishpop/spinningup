@@ -14,13 +14,14 @@ FRAMESKIP = 15
 rl_algs = {'sac': sac_pytorch, 'ppo': ppo_pytorch, 'td3': td3_pytorch}
 
 
-def run_rl_alg(alg_name='ppo', pos_coef=0.5, ori_coef=0.5, ori_thresh=np.pi/6, dist_thresh=0.06,
-            ac_norm_pen=0.01, fingertip_coef=0.1, augment_rew=True,
-            frameskip=FRAMESKIP, ep_len=None, rew_fn='exp',
-            sample_radius=0.09, sa_relative=False, ts_relative=False,
-            goal_relative=True, lim_pen=0.001, keep_goal=False, use_quat=False,
-            cube_rew=False, step_rew=False, reorient_env=False, scaled_ac=False,
-            task_space=False, **alg_kwargs):
+def run_rl_alg(alg_name='ppo', pos_coef=.1, ori_coef=.1, ori_thresh=np.pi/6,
+               dist_thresh=.09, ac_norm_pen=.01, fingertip_coef=.1,
+               augment_rew=True, ep_len=EPLEN, frameskip=FRAMESKIP,
+               rew_fn='exp', sample_radius=0.09, sa_relative=True,
+               ts_relative=False, goal_relative=True, lim_pen=0.001,
+               keep_goal=False, use_quat=False, cube_rew=False, step_rew=False,
+               reorient_env=False, scaled_ac=False, task_space=False,
+               **alg_kwargs):
     env_fn = None # rrc_utils.p2_reorient_env_fn
     early_stop = None # rrc_utils.success_rate_early_stopping
     ep_len = ep_len or 9 * 1000 // frameskip  # 9 seconds of interaction
@@ -35,10 +36,11 @@ def run_rl_alg(alg_name='ppo', pos_coef=0.5, ori_coef=0.5, ori_thresh=np.pi/6, d
                 use_quat=use_quat, cube_rew=cube_rew, step_rew=step_rew,
                 reorient_env=reorient_env, scaled_ac=scaled_ac,
                 task_space=task_space)
+    assert alg_name in rl_algs, \
+           'alg_name {} is not in {}'.format(alg_name, list(rl_algs.keys()))
     rl_alg = rl_algs.get(alg_name)
-    assert rl_alg is not None, 'alg_name {} is not valid'.format(alg_name)
     rl_alg(env_fn=env_fn, info_kwargs=rrc_utils.p2_info_kwargs,
-                early_stopping_fn=early_stop ,**alg_kwargs)
+           early_stopping_fn=early_stop ,**alg_kwargs)
 
 
 if __name__ == '__main__':
