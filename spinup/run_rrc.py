@@ -10,20 +10,20 @@ from rrc_iprl_package.envs import cube_env, env_wrappers, rrc_utils
 
 
 FRAMESKIP = 15
-EPLEN = 9 * 1000 // FRAMESKIP
 
 rl_algs = {'sac': sac_pytorch, 'ppo': ppo_pytorch, 'td3': td3_pytorch}
 
 
-def run_rl_alg(alg_name='ppo', pos_coef=.1, ori_coef=.1, ori_thresh=np.pi/6, dist_thresh=0.09,
-            ac_norm_pen=0.1, fingertip_coef=0.1, augment_rew=True,
-            ep_len=EPLEN, frameskip=FRAMESKIP, rew_fn='exp',
-            sample_radius=0.09, sa_relative=False, ts_relative=True,
+def run_rl_alg(alg_name='ppo', pos_coef=0.5, ori_coef=0.5, ori_thresh=np.pi/6, dist_thresh=0.06,
+            ac_norm_pen=0.01, fingertip_coef=0.1, augment_rew=True,
+            frameskip=FRAMESKIP, ep_len=None, rew_fn='exp',
+            sample_radius=0.09, sa_relative=False, ts_relative=False,
             goal_relative=True, lim_pen=0.001, keep_goal=False, use_quat=False,
             cube_rew=False, step_rew=False, reorient_env=False, scaled_ac=False,
             task_space=False, **alg_kwargs):
     env_fn = None # rrc_utils.p2_reorient_env_fn
     early_stop = None # rrc_utils.success_rate_early_stopping
+    ep_len = ep_len or 9 * 1000 // frameskip  # 9 seconds of interaction
     if env_fn is None:
         env_fn = rrc_utils.build_env_fn(pos_coef=pos_coef, ori_coef=ori_coef,
                 ori_thresh=ori_thresh, dist_thresh=dist_thresh,
