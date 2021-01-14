@@ -20,7 +20,7 @@ def run_rl_alg(alg_name='ppo', pos_coef=.1, ori_coef=.1, ori_thresh=np.pi/6,
                rew_fn='exp', sample_radius=0.09, sa_relative=True,
                ts_relative=False, goal_relative=False, lim_pen=0.001,
                keep_goal=False, use_quat=False, cube_rew=False, step_rew=False,
-               reorient_env=False, scaled_ac=True, task_space=False,
+               reorient_env=False, scaled_ac=False, task_space=False,
                **alg_kwargs):
     env_fn = None # rrc_utils.p2_reorient_env_fn
     early_stop = None # rrc_utils.success_rate_early_stopping
