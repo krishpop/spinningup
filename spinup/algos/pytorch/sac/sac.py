@@ -46,7 +46,7 @@ def sac(env_fn, actor_critic=core.MLPActorCritic, ac_kwargs=dict(), seed=0,
         steps_per_epoch=4000, epochs=100, replay_size=int(1e6), gamma=0.99, 
         polyak=0.995, lr=1e-3, alpha=0.2, batch_size=100, start_steps=10000, 
         update_after=1000, update_every=50, num_test_episodes=10, max_ep_len=1000, 
-        logger_kwargs=dict(), save_freq=1):
+        logger_kwargs=dict(), info_kwargs=dict(), save_freq=1):
     """
     Soft Actor-Critic (SAC)
 
@@ -294,7 +294,7 @@ def sac(env_fn, actor_critic=core.MLPActorCritic, ac_kwargs=dict(), seed=0,
             a = env.action_space.sample()
 
         # Step the env
-        o2, r, d, _ = env.step(a)
+        o2, r, d, info = env.step(a)
         ep_ret += r
         ep_len += 1
 
@@ -314,6 +314,12 @@ def sac(env_fn, actor_critic=core.MLPActorCritic, ac_kwargs=dict(), seed=0,
         if d or (ep_len == max_ep_len):
             logger.store(EpRet=ep_ret, EpLen=ep_len)
             o, ep_ret, ep_len = env.reset(), 0, 0
+            info_log = {}
+            for k, v in info_kwargs.items():
+                if k in info:
+                    info_log[v] = info.get(k)
+            if info_log:
+                logger.store(**info_log)
 
         # Update handling
         if t >= update_after and t % update_every == 0:
@@ -345,6 +351,12 @@ def sac(env_fn, actor_critic=core.MLPActorCritic, ac_kwargs=dict(), seed=0,
             logger.log_tabular('LossPi', average_only=True)
             logger.log_tabular('LossQ', average_only=True)
             logger.log_tabular('Time', time.time()-start_time)
+            for k, v in info_kwargs.items():
+                if v in logger.epoch_dict:
+                    with_min_and_max = 'Val' not in v
+                    logger.log_tabular(v, average_only=True,
+                            with_min_and_max=with_min_and_max)
+
             logger.dump_tabular()
 
 if __name__ == '__main__':

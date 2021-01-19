@@ -23,7 +23,7 @@ def run_rl_alg(alg_name='ppo', pos_coef=.1, ori_coef=.1, ori_thresh=np.pi/6,
                reorient_env=False, scaled_ac=False, task_space=False,
                **alg_kwargs):
     env_fn = None # rrc_utils.p2_reorient_env_fn
-    early_stop = None # rrc_utils.success_rate_early_stopping
+    # early_stop = None # rrc_utils.success_rate_early_stopping
     ep_len = ep_len or 9 * 1000 // frameskip  # 9 seconds of interaction
     if env_fn is None:
         env_fn = rrc_utils.build_env_fn(pos_coef=pos_coef, ori_coef=ori_coef,
@@ -40,7 +40,7 @@ def run_rl_alg(alg_name='ppo', pos_coef=.1, ori_coef=.1, ori_thresh=np.pi/6,
            'alg_name {} is not in {}'.format(alg_name, list(rl_algs.keys()))
     rl_alg = rl_algs.get(alg_name)
     rl_alg(env_fn=env_fn, info_kwargs=rrc_utils.p2_info_kwargs,
-           early_stopping_fn=early_stop ,**alg_kwargs)
+           **alg_kwargs)
 
 
 if __name__ == '__main__':
@@ -55,6 +55,7 @@ if __name__ == '__main__':
     parser.add_argument('--data_dir', type=str, default=None)
     parser.add_argument('--datestamp', '--dt', action='store_true')
     parser.add_argument('--load_path', type=str, default=None, help='path to pre-trained model')
+    parser.add_argument('--replay_size', type=int, default=int(1e6))
 
     # experiment grid arguments
     parser.add_argument('--frameskip', '--f', type=int, nargs='*', default=[])
@@ -139,5 +140,10 @@ if __name__ == '__main__':
         eg.add('task_space', args.task_acwrapper)
     if args.step_rewwrapper:
         eg.add('step_rew', args.step_rewwrapper)
-    eg.run(run_rl_alg, num_cpu=args.cpu, data_dir=args.data_dir,
-           datestamp=args.datestamp)
+    if args.alg == 'ppo':
+        eg.run(run_rl_alg, num_cpu=args.cpu, data_dir=args.data_dir,
+               datestamp=args.datestamp)
+    else:
+        eg.run(run_rl_alg, data_dir=args.data_dir,
+               datestamp=args.datestamp)
+

@@ -51,7 +51,7 @@ def td3(env_fn, actor_critic=core.MLPActorCritic, ac_kwargs=dict(), seed=0,
         polyak=0.995, pi_lr=1e-3, q_lr=1e-3, batch_size=100, start_steps=10000, 
         update_after=1000, update_every=50, act_noise=0.1, target_noise=0.2, 
         noise_clip=0.5, policy_delay=2, num_test_episodes=10, max_ep_len=1000, 
-        logger_kwargs=dict(), save_freq=1):
+        logger_kwargs=dict(), info_kwargs=dict(), save_freq=1):
     """
     Twin Delayed Deep Deterministic Policy Gradient (TD3)
 
@@ -277,10 +277,16 @@ def td3(env_fn, actor_critic=core.MLPActorCritic, ac_kwargs=dict(), seed=0,
             o, d, ep_ret, ep_len = test_env.reset(), False, 0, 0
             while not(d or (ep_len == max_ep_len)):
                 # Take deterministic actions at test time (noise_scale=0)
-                o, r, d, _ = test_env.step(get_action(o, 0))
+                o, r, d, info = test_env.step(get_action(o, 0))
                 ep_ret += r
                 ep_len += 1
             logger.store(TestEpRet=ep_ret, TestEpLen=ep_len)
+            info_log = {}
+            for k, v in info_kwargs.items():
+                if k in info:
+                    info_log['Test'+v] = info.get(k)
+            if info_log:
+                logger.store(**info_log)
 
     # Prepare for interaction with environment
     total_steps = steps_per_epoch * epochs
@@ -299,7 +305,7 @@ def td3(env_fn, actor_critic=core.MLPActorCritic, ac_kwargs=dict(), seed=0,
             a = env.action_space.sample()
 
         # Step the env
-        o2, r, d, _ = env.step(a)
+        o2, r, d, info = env.step(a)
         ep_ret += r
         ep_len += 1
 
@@ -319,6 +325,13 @@ def td3(env_fn, actor_critic=core.MLPActorCritic, ac_kwargs=dict(), seed=0,
         if d or (ep_len == max_ep_len):
             logger.store(EpRet=ep_ret, EpLen=ep_len)
             o, ep_ret, ep_len = env.reset(), 0, 0
+            info_log = {}
+            for k, v in info_kwargs.items():
+                if k in info:
+                    info_log[v] = info.get(k)
+            if info_log:
+                logger.store(**info_log)
+
 
         # Update handling
         if t >= update_after and t % update_every == 0:
@@ -349,6 +362,11 @@ def td3(env_fn, actor_critic=core.MLPActorCritic, ac_kwargs=dict(), seed=0,
             logger.log_tabular('LossPi', average_only=True)
             logger.log_tabular('LossQ', average_only=True)
             logger.log_tabular('Time', time.time()-start_time)
+            for k, v in info_kwargs.items():
+                if v in logger.epoch_dict:
+                    with_min_and_max = 'Val' not in v
+                    logger.log_tabular(v, average_only=True,
+                            with_min_and_max=with_min_and_max)
             logger.dump_tabular()
 
 if __name__ == '__main__':
