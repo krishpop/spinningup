@@ -252,7 +252,7 @@ logger_kwargs (dict): Keyword args for EpochLogger.
     # Set up model saving
     logger.setup_pytorch_saver(ac)
 
-    def update():
+    def update(epoch):
         data = buf.get()
 
         pi_l_old, pi_info_old = compute_loss_pi(data)
@@ -267,9 +267,12 @@ logger_kwargs (dict): Keyword args for EpochLogger.
             if kl > 1.5 * target_kl:
                 logger.log('Early stopping at step %d due to reaching max kl.'%i)
                 break
-            loss_pi.backward()
-            mpi_avg_grads(ac.pi)    # average grads across MPI processes
-            pi_optimizer.step()
+            if epoch > epochs // 2:
+                loss_pi.backward()
+                mpi_avg_grads(ac.pi)    # average grads across MPI processes
+                pi_optimizer.step()
+            else:
+                pi_optimizer.zero_grad()
 
         logger.store(StopIter=i)
 
@@ -296,6 +299,8 @@ logger_kwargs (dict): Keyword args for EpochLogger.
     for epoch in range(start_ep, epochs):
         for t in range(local_steps_per_epoch):
             a, v, logp = ac.step(torch.as_tensor(o, dtype=torch.float32))
+            if epoch <= epochs // 2:
+                a *= 0
 
             next_o, r, d, i = env.step(a)
             ep_ret += r
@@ -338,7 +343,7 @@ logger_kwargs (dict): Keyword args for EpochLogger.
             logger.save_state({'env': env}, epoch)
 
         # Perform PPO update!
-        update()
+        update(epoch)
 
         # Log info about epoch
         logger.log_tabular('Epoch', epoch)

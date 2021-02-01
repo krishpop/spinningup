@@ -8,7 +8,6 @@ from spinup.utils.run_utils import ExperimentGrid
 from spinup import ppo_pytorch, sac_pytorch, td3_pytorch
 from rrc_iprl_package.envs import cube_env, env_wrappers, rrc_utils
 
-
 FRAMESKIP = 15
 
 rl_algs = {'sac': sac_pytorch, 'ppo': ppo_pytorch, 'td3': td3_pytorch}
@@ -22,10 +21,11 @@ def run_rl_alg(difficulty=1, alg_name='ppo', pos_coef=.1, ori_coef=.1, ori_thres
                ts_relative=False, goal_relative=False, lim_pen=0.001,
                keep_goal=False, use_quat=False, cube_rew=False, step_rew=False,
                reorient_env=False, scaled_ac=False, task_space=False,
+               res_torque=True,
                **alg_kwargs):
     env_fn = None # rrc_utils.p2_reorient_env_fn
     # early_stop = None # rrc_utils.success_rate_early_stopping
-    ep_len = ep_len or 9 * 1000 // frameskip  # 9 seconds of interaction
+    ep_len = ep_len or 9 * 1000 // frameskip  # 15 seconds of interaction
     if env_fn is None:
         env_fn = rrc_utils.build_env_fn(difficulty=difficulty,
                 pos_coef=pos_coef, ori_coef=ori_coef,
@@ -37,13 +37,17 @@ def run_rl_alg(difficulty=1, alg_name='ppo', pos_coef=.1, ori_coef=.1, ori_thres
                 goal_relative=goal_relative, lim_pen=lim_pen, keep_goal=keep_goal,
                 use_quat=use_quat, cube_rew=cube_rew, step_rew=step_rew,
                 reorient_env=reorient_env, scaled_ac=scaled_ac,
-                task_space=task_space)
+                task_space=task_space, res_torque=res_torque)
     assert alg_name in rl_algs, \
            'alg_name {} is not in {}'.format(alg_name, list(rl_algs.keys()))
     rl_alg = rl_algs.get(alg_name)
     rl_alg(env_fn=env_fn, info_kwargs=rrc_utils.p2_info_kwargs,
            **alg_kwargs)
 
+def process(arg):
+    if isinstance(arg, str):
+        return eval(arg)
+    return arg
 
 if __name__ == '__main__':
     import argparse
@@ -53,12 +57,12 @@ if __name__ == '__main__':
     parser.add_argument('--num_runs', type=int, default=1)
     parser.add_argument('--steps_per_epoch', type=int, default=None)
     parser.add_argument('--epochs', type=int, default=250)
-    parser.add_argument('--exp_name', type=str, default='ppo-reorient')
+    parser.add_argument('--exp_name', type=str, default='ppo-rrc')
     parser.add_argument('--data_dir', type=str, default=None)
     parser.add_argument('--datestamp', '--dt', action='store_true')
     parser.add_argument('--load_path', type=str, default=None, help='path to pre-trained model')
     parser.add_argument('--replay_size', type=int, default=int(1e6))
-    parser.add_argument('--difficulty', type=int, default=1)
+    parser.add_argument('--difficulty', type=int, nargs='*', default=[1])
     parser.add_argument('--action_type', type=str, default='pos')
 
     # experiment grid arguments
@@ -77,6 +81,7 @@ if __name__ == '__main__':
 
     # run PPO wrapper arguments
     parser.add_argument('--residual', '--res', action='store_true')
+    parser.add_argument('--res_force', '--rf',  action='store_true')
     parser.add_argument('--scaled_acwrapper', '--saw', action='store_true')
     parser.add_argument('--task_acwrapper', '--taw', action='store_true')
     parser.add_argument('--step_rewwrapper', '--srw', action='store_true')
@@ -86,6 +91,7 @@ if __name__ == '__main__':
     parser.add_argument('--cube_rew', action='store_true')
     parser.add_argument('--step_rew', action='store_true')
     parser.add_argument('--rew_fn', type=str)
+    parser.add_argument('--act_fn', nargs='*', type=str, default=[nn.ReLU])
 
     args = parser.parse_args()
 
@@ -103,7 +109,8 @@ if __name__ == '__main__':
     if args.load_path:
         eg.add('load_path', args.load_path)
     eg.add('ac_kwargs:hidden_sizes', [(64,64)], 'hid')
-    # eg.add('ac_kwargs:activation', [nn.ReLU], 'ac-act')
+    if args.act_fn:
+        eg.add('ac_kwargs:activation', [process(af) for af in args.act_fn], 'ac-act')
     if args.frameskip:
         eg.add('frameskip', args.frameskip, 'fs')
     if args.pos_coef:
@@ -130,10 +137,12 @@ if __name__ == '__main__':
         eg.add('use_quat', args.use_quat, 'uq')
     if args.residual:
         eg.add('residual', args.residual, 'res')
+    if args.res_force:
+        eg.add('res_torque', False, 'rtor')
     if args.relative_scaledwrapper:
         eg.add('sa_relative', args.relative_scaledwrapper, 'rsw')
     if args.relative_taskwrapper:
-        eg.add('ts_relative', args.relative_taskwrapper, 'rtw')
+        eg.add('ts_relative', [False, True], 'rtw')
     if args.relative_goalwrapper:
         eg.add('goal_relative', args.relative_goalwrapper, 'rgw')
     if args.cube_rew:
