@@ -171,15 +171,6 @@ if __name__ == '__main__':
                                           args.itr if args.itr >=0 else 'last',
                                           args.deterministic)
     if not args.norender and rrc_utils is not None:
-        if env is None:
-            ac_wrappers = ['scaled']
-            if 'nostep' not in args.fpath:
-                ac_wrappers.append('step')
-            env_fn = rrc_utils.build_env_fn(ac_wrappers=ac_wrappers)
-            env = env_fn()
-        else:
-            env = rrc_utils.build_env_fn(ac_wrappers=['scaled'], pos_coef=.5, ori_coef=.5,
-                                         relative=(False,False,True), frameskip=15, ep_len=600)()
-        env.unwrapped.visualization = True
+        env.unwrapped.visualization = not args.norender
     run_policy(env, get_action, args.len, args.episodes, not(args.norender),
                args.save_vid)

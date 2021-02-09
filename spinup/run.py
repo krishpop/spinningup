@@ -43,7 +43,7 @@ BASE_ALGO_NAMES = ['vpg', 'trpo', 'ppo', 'ddpg', 'td3', 'sac']
 
 # RRC specific functions
 try:
-    from spinup.utils import rrc_utils
+    from rrc_iprl_package.envs import rrc_utils
 except ImportError:
     rrc_utils = None
 
