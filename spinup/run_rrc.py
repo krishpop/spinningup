@@ -8,7 +8,6 @@ from spinup.utils.run_utils import ExperimentGrid
 from spinup import ppo_pytorch, sac_pytorch, td3_pytorch
 from rrc_iprl_package.envs import cube_env, env_wrappers, rrc_utils
 
-
 FRAMESKIP = 15
 
 rl_algs = {'sac': sac_pytorch, 'ppo': ppo_pytorch, 'td3': td3_pytorch}
@@ -25,7 +24,7 @@ def run_rl_alg(alg_name='ppo', difficulty=1, ep_len=None, frameskip=FRAMESKIP,
                framestack=1, sparse=False, initializer='random', **alg_kwargs):
     env_fn = None # rrc_utils.p2_reorient_env_fn
     # early_stop = None # rrc_utils.success_rate_early_stopping
-    ep_len = ep_len or 9 * 1000 // frameskip  # 9 seconds of interaction
+    ep_len = ep_len or 9 * 1000 // frameskip  # 15 seconds of interaction
     if env_fn is None:
         env_fn = rrc_utils.build_env_fn(difficulty=difficulty,
                 ep_len=ep_len, frameskip=frameskip, action_type=action_type,
@@ -38,12 +37,17 @@ def run_rl_alg(alg_name='ppo', difficulty=1, ep_len=None, frameskip=FRAMESKIP,
                 use_quat=use_quat, step_rew=step_rew, residual=residual,
                 res_torque=res_torque, framestack=framestack, sparse=sparse,
                 initializer=initializer)
+
     assert alg_name in rl_algs, \
            'alg_name {} is not in {}'.format(alg_name, list(rl_algs.keys()))
     rl_alg = rl_algs.get(alg_name)
     rl_alg(env_fn=env_fn, info_kwargs=rrc_utils.p2_info_kwargs,
            **alg_kwargs)
 
+def process(arg):
+    if isinstance(arg, str):
+        return eval(arg)
+    return arg
 
 if __name__ == '__main__':
     import argparse
@@ -53,12 +57,12 @@ if __name__ == '__main__':
     parser.add_argument('--num_runs', type=int, default=1)
     parser.add_argument('--steps_per_epoch', type=int, default=None)
     parser.add_argument('--epochs', type=int, default=250)
-    parser.add_argument('--exp_name', type=str, default='ppo-reorient')
+    parser.add_argument('--exp_name', type=str, default='ppo-rrc')
     parser.add_argument('--data_dir', type=str, default=None)
     parser.add_argument('--datestamp', '--dt', action='store_true')
     parser.add_argument('--load_path', type=str, default=None, help='path to pre-trained model')
     parser.add_argument('--replay_size', type=int, default=int(1e6))
-    parser.add_argument('--difficulty', type=int, default=1)
+    parser.add_argument('--difficulty', type=int, nargs='*', default=[1])
     parser.add_argument('--action_type', type=str, default='pos')
 
     # experiment grid arguments
@@ -80,7 +84,7 @@ if __name__ == '__main__':
     parser.add_argument('--sparse', action='store_true')
     parser.add_argument('--initializer', type=str)
     parser.add_argument('--residual', '--res', action='store_true')
-    parser.add_argument('--res_force', '--rforce', action='store_true')
+    parser.add_argument('--res_force', '--rf',  action='store_true')
     parser.add_argument('--scaled_acwrapper', '--saw', action='store_true')
     parser.add_argument('--task_acwrapper', '--taw', action='store_true')
     parser.add_argument('--relative_goalwrapper', '--rgw', nargs='*', type=bool, default=[])
@@ -88,6 +92,7 @@ if __name__ == '__main__':
     parser.add_argument('--relative_scaledwrapper', '--rsw', nargs='*', type=bool, default=[])
     parser.add_argument('--step_rew', action='store_true')
     parser.add_argument('--rew_fn', type=str)
+    parser.add_argument('--act_fn', nargs='*', type=str, default=[nn.ReLU])
 
     args = parser.parse_args()
 
@@ -100,6 +105,7 @@ if __name__ == '__main__':
     if args.load_path:
         eg.add('load_path', args.load_path)
     eg.add('ac_kwargs:hidden_sizes', [(64,64)], 'hid')
+<<<<<<< HEAD
     # eg.add('ac_kwargs:activation', [nn.ReLU], 'ac-act')
 
     if args.alg == 'sac':
@@ -109,6 +115,10 @@ if __name__ == '__main__':
     eg.add('difficulty', args.difficulty, 'lvl')
     eg.add('action_type', args.action_type, 'atype')
 
+=======
+    if args.act_fn:
+        eg.add('ac_kwargs:activation', [process(af) for af in args.act_fn], 'ac-act')
+>>>>>>> 0db6e2bf0f03f1ffc3ccde5ec6849ef5b793ca5f
     if args.frameskip:
         eg.add('frameskip', args.frameskip, 'fs')
     if args.ep_len:
@@ -152,8 +162,7 @@ if __name__ == '__main__':
 
     if args.task_acwrapper:
         eg.add('task_space', args.task_acwrapper)
-    if args.relative_taskwrapper:
-        eg.add('ts_relative', args.relative_taskwrapper, 'rtw')
+        eg.add('ts_relative', [False, True], 'rtw')
     if args.relative_goalwrapper:
         eg.add('goal_relative', args.relative_goalwrapper, 'rgw')
     if args.step_rew:
