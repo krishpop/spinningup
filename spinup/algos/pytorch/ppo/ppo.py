@@ -91,6 +91,7 @@ def ppo(env_fn, actor_critic=core.MLPActorCritic, ac_kwargs=dict(), seed=0,
         steps_per_epoch=4000, epochs=50, gamma=0.99, clip_ratio=0.2, pi_lr=3e-4,
         vf_lr=1e-3, train_pi_iters=80, train_v_iters=80, lam=0.97, max_ep_len=1000,
         target_kl=0.01, logger_kwargs=dict(), info_kwargs=dict(), save_freq=10,
+        residual_policy=False,
         early_stopping_fn=None, load_path=None):
     """
     Proximal Policy Optimization (by clipping), 
@@ -154,12 +155,11 @@ def ppo(env_fn, actor_critic=core.MLPActorCritic, ac_kwargs=dict(), seed=0,
         epochs (int): Number of epochs of interaction (equivalent to
             number of policy updates) to perform.  
         gamma (float): Discount factor. (Always between 0 and 1.)
-clip_ratio (float): Hyperparameter for clipping in the policy objective.
+        clip_ratio (float): Hyperparameter for clipping in the policy objective.
             Roughly: how far can the new policy go from the old policy while still profiting (improving the objective function)? The new policy 
             can still go farther than the clip_ratio says, but it doesn't help on the objective anymore. (Usually small, 0.1 to 0.3.) Typically
             denoted by :math:`\epsilon`. 
-pi_lr (float): Learning rate for policy optimizer.
-
+        pi_lr (float): Learning rate for policy optimizer.
         vf_lr (float): Learning rate for value function optimizer.  
         train_pi_iters (int): Maximum number of gradient descent steps to take 
             on policy loss per epoch. (Early stopping may cause optimizer to take fewer than this.)
@@ -267,12 +267,12 @@ logger_kwargs (dict): Keyword args for EpochLogger.
             if kl > 1.5 * target_kl:
                 logger.log('Early stopping at step %d due to reaching max kl.'%i)
                 break
-            if epoch > epochs // 2:
+            if not residual_policy or (residual_policy and epoch >= epochs//2): 
                 loss_pi.backward()
                 mpi_avg_grads(ac.pi)    # average grads across MPI processes
                 pi_optimizer.step()
             else:
-                pi_optimizer.zero_grad()
+               pi_optimizer.zero_grad()
 
         logger.store(StopIter=i)
 
@@ -299,7 +299,7 @@ logger_kwargs (dict): Keyword args for EpochLogger.
     for epoch in range(start_ep, epochs):
         for t in range(local_steps_per_epoch):
             a, v, logp = ac.step(torch.as_tensor(o, dtype=torch.float32))
-            if epoch <= epochs // 2:
+            if residual_policy and epoch <= epochs // 2:
                 a *= 0
 
             next_o, r, d, i = env.step(a)

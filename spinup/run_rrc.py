@@ -14,13 +14,13 @@ rl_algs = {'sac': sac_pytorch, 'ppo': ppo_pytorch, 'td3': td3_pytorch}
 
 
 def run_rl_alg(alg_name='ppo', difficulty=1, ep_len=None, frameskip=FRAMESKIP,
-               action_type='pos', rew_fn='sigmoid', goal_env=False,
-               dist_thresh=0.02, ori_thresh=np.pi/6,
+               action_type='pos', rew_fn='step', goal_env=False,
+               dist_thresh=0.05, ori_thresh=np.pi/6,
                pos_coef=.1, ori_coef=.1, fingertip_coef=0, ac_norm_pen=0.,
                scaled_ac=False, sa_relative=False, lim_pen=0.,
                task_space=False, ts_relative=False,
                goal_relative=True, keep_goal=False, use_quat=False,
-               step_rew=False, residual=False, res_torque=True,
+               residual=False, res_torque=True,
                framestack=1, sparse=False, initializer='random', **alg_kwargs):
     env_fn = None # rrc_utils.p2_reorient_env_fn
     # early_stop = None # rrc_utils.success_rate_early_stopping
@@ -34,7 +34,7 @@ def run_rl_alg(alg_name='ppo', difficulty=1, ep_len=None, frameskip=FRAMESKIP,
                 scaled_ac=scaled_ac, sa_relative=sa_relative, lim_pen=lim_pen,
                 task_space=task_space, ts_relative=ts_relative,
                 goal_relative=goal_relative, keep_goal=keep_goal,
-                use_quat=use_quat, step_rew=step_rew, residual=residual,
+                use_quat=use_quat, residual=residual,
                 res_torque=res_torque, framestack=framestack, sparse=sparse,
                 initializer=initializer)
 
@@ -90,9 +90,10 @@ if __name__ == '__main__':
     parser.add_argument('--relative_goalwrapper', '--rgw', nargs='*', type=bool, default=[])
     parser.add_argument('--relative_taskwrapper', '--rtw', nargs='*', type=bool, default=[])
     parser.add_argument('--relative_scaledwrapper', '--rsw', nargs='*', type=bool, default=[])
-    parser.add_argument('--step_rew', action='store_true')
+    parser.add_argument('--pi_lr', type=float)
+    parser.add_argument('--vf_lr', type=float)
     parser.add_argument('--rew_fn', type=str)
-    parser.add_argument('--act_fn', nargs='*', type=str, default=[nn.ReLU])
+    parser.add_argument('--act_fn', nargs='*', type=str)
 
     args = parser.parse_args()
 
@@ -105,20 +106,26 @@ if __name__ == '__main__':
     if args.load_path:
         eg.add('load_path', args.load_path)
     eg.add('ac_kwargs:hidden_sizes', [(64,64)], 'hid')
-<<<<<<< HEAD
-    # eg.add('ac_kwargs:activation', [nn.ReLU], 'ac-act')
+    if args.act_fn:
+        act_fn = []
+        for f in args.act_fn:
+            if isinstance(f, str):
+                act_fn.append(eval(f))
+            else:
+                act_fn.append(f)
+        eg.add('ac_kwargs:activation', act_fn, 'ac-act')
 
     if args.alg == 'sac':
         if args.replay_size:
             eg.add('replay_size', args.replay_size, 'rbsize')
+    elif args.alg == 'ppo':
+        if args.pi_lr:
+            eg.add('pi_lr', args.pi_lr, 'pilr')
+        if args.vf_lr:
+            eg.add('vf_lr', args.vf_lr, 'vflr')
 
     eg.add('difficulty', args.difficulty, 'lvl')
     eg.add('action_type', args.action_type, 'atype')
-
-=======
-    if args.act_fn:
-        eg.add('ac_kwargs:activation', [process(af) for af in args.act_fn], 'ac-act')
->>>>>>> 0db6e2bf0f03f1ffc3ccde5ec6849ef5b793ca5f
     if args.frameskip:
         eg.add('frameskip', args.frameskip, 'fs')
     if args.ep_len:
@@ -157,6 +164,7 @@ if __name__ == '__main__':
         eg.add('initializer', args.initializer, 'init')
     if args.residual:
         eg.add('residual', args.residual, 'res')
+        eg.add('residual_policy', args.residual)
     if args.res_force:
         eg.add('res_torque', not args.res_force, 'rtor')
 
@@ -165,8 +173,6 @@ if __name__ == '__main__':
         eg.add('ts_relative', [False, True], 'rtw')
     if args.relative_goalwrapper:
         eg.add('goal_relative', args.relative_goalwrapper, 'rgw')
-    if args.step_rew:
-        eg.add('step_rew', [args.step_rew])
     if args.rew_fn:
         eg.add('rew_fn', args.rew_fn)
 
