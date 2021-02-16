@@ -15,13 +15,13 @@ rl_algs = {'sac': sac_pytorch, 'ppo': ppo_pytorch, 'td3': td3_pytorch}
 
 def run_rl_alg(alg_name='ppo', difficulty=1, ep_len=None, frameskip=FRAMESKIP,
                action_type='pos', rew_fn='step', goal_env=False,
-               dist_thresh=0.01, ori_thresh=np.pi/6,
+               dist_thresh=0.02, ori_thresh=np.pi/6,
                pos_coef=.1, ori_coef=.1, fingertip_coef=0, ac_norm_pen=0.,
                scaled_ac=False, sa_relative=False, lim_pen=0.,
                task_space=False, ts_relative=False,
                goal_relative=False, keep_goal=False, use_quat=False,
                residual=False, res_torque=True,
-               framestack=1, sparse=False, initializer='random',
+               framestack=1, sparse=False, initializer='',
                single_finger=False, **alg_kwargs):
     env_fn = None # rrc_utils.p2_reorient_env_fn
     # early_stop = None # rrc_utils.success_rate_early_stopping
@@ -71,7 +71,7 @@ if __name__ == '__main__':
     parser.add_argument('--pos_coef', '--pc', type=float, nargs='*', default=[])
     parser.add_argument('--ori_coef', '--oc', type=float, nargs='*', default=[])
     parser.add_argument('--fingertip_coef', '--fc', type=float, nargs='*', default=[])
-    parser.add_argument('--pos_thresh', '--pt', type=float, nargs='*', default=[])
+    parser.add_argument('--dist_thresh', '--pt', type=float, nargs='*', default=[])
     parser.add_argument('--ori_thresh', '--ot', type=float, nargs='*', default=[])
     parser.add_argument('--sample_rad', '--sr', type=float, nargs='*', default=[])
     parser.add_argument('--ac_norm_pen', type=float, nargs='*', default=[])
@@ -132,8 +132,8 @@ if __name__ == '__main__':
         eg.add('frameskip', args.frameskip, 'fs')
     if args.ep_len:
         eg.add('ep_len', args.ep_len, 'el')
-    if args.pos_thresh:
-        eg.add('pos_thresh', args.pos_thresh, 'pt')
+    if args.dist_thresh:
+        eg.add('dist_thresh', args.dist_thresh, 'dt')
     if args.ori_thresh:
         eg.add('ori_thresh', args.ori_thresh, 'ot')
 
