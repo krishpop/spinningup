@@ -15,13 +15,14 @@ rl_algs = {'sac': sac_pytorch, 'ppo': ppo_pytorch, 'td3': td3_pytorch}
 
 def run_rl_alg(alg_name='ppo', difficulty=1, ep_len=None, frameskip=FRAMESKIP,
                action_type='pos', rew_fn='step', goal_env=False,
-               dist_thresh=0.05, ori_thresh=np.pi/6,
+               dist_thresh=0.01, ori_thresh=np.pi/6,
                pos_coef=.1, ori_coef=.1, fingertip_coef=0, ac_norm_pen=0.,
                scaled_ac=False, sa_relative=False, lim_pen=0.,
                task_space=False, ts_relative=False,
-               goal_relative=True, keep_goal=False, use_quat=False,
+               goal_relative=False, keep_goal=False, use_quat=False,
                residual=False, res_torque=True,
-               framestack=1, sparse=False, initializer='random', **alg_kwargs):
+               framestack=1, sparse=False, initializer='random',
+               single_finger=False, **alg_kwargs):
     env_fn = None # rrc_utils.p2_reorient_env_fn
     # early_stop = None # rrc_utils.success_rate_early_stopping
     ep_len = ep_len or 9 * 1000 // frameskip  # 15 seconds of interaction
@@ -36,7 +37,7 @@ def run_rl_alg(alg_name='ppo', difficulty=1, ep_len=None, frameskip=FRAMESKIP,
                 goal_relative=goal_relative, keep_goal=keep_goal,
                 use_quat=use_quat, residual=residual,
                 res_torque=res_torque, framestack=framestack, sparse=sparse,
-                initializer=initializer)
+                initializer=initializer, single_finger=single_finger)
 
     assert alg_name in rl_algs, \
            'alg_name {} is not in {}'.format(alg_name, list(rl_algs.keys()))
@@ -93,6 +94,7 @@ if __name__ == '__main__':
     parser.add_argument('--pi_lr', type=float)
     parser.add_argument('--vf_lr', type=float)
     parser.add_argument('--rew_fn', type=str)
+    parser.add_argument('--single_finger', '--sf', action='store_true')
     parser.add_argument('--act_fn', nargs='*', type=str)
 
     args = parser.parse_args()
@@ -162,6 +164,8 @@ if __name__ == '__main__':
         eg.add('sparse', args.sparse, 'sparse')
     if args.initializer:
         eg.add('initializer', args.initializer, 'init')
+    if args.single_finger:
+        eg.add('single_finger', args.single_finger, 'sf')
     if args.residual:
         eg.add('residual', args.residual, 'res')
         eg.add('residual_policy', args.residual)
@@ -170,7 +174,7 @@ if __name__ == '__main__':
 
     if args.task_acwrapper:
         eg.add('task_space', args.task_acwrapper)
-        eg.add('ts_relative', [False, True], 'rtw')
+        eg.add('ts_relative', [True], 'rtw')
     if args.relative_goalwrapper:
         eg.add('goal_relative', args.relative_goalwrapper, 'rgw')
     if args.rew_fn:
