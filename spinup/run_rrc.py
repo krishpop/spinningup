@@ -19,9 +19,9 @@ def run_rl_alg(alg_name='ppo', difficulty=1, ep_len=None, frameskip=FRAMESKIP,
                pos_coef=.1, ori_coef=.1, fingertip_coef=0, ac_norm_pen=0.,
                scaled_ac=False, sa_relative=False, lim_pen=0.,
                task_space=False, ts_relative=False,
-               goal_relative=True, keep_goal=False, use_quat=False,
+               goal_relative=True, keep_goal=True, use_quat=False,
                residual=False, res_torque=True,
-               framestack=1, sparse=False, initializer='random', **alg_kwargs):
+               framestack=1, sparse=False, initializer='', **alg_kwargs):
     env_fn = None # rrc_utils.p2_reorient_env_fn
     # early_stop = None # rrc_utils.success_rate_early_stopping
     ep_len = ep_len or 9 * 1000 // frameskip  # 15 seconds of interaction
@@ -82,6 +82,7 @@ if __name__ == '__main__':
     # run PPO wrapper arguments
     parser.add_argument('--framestack', type=int)
     parser.add_argument('--sparse', action='store_true')
+    parser.add_argument('--gamma', type=float)
     parser.add_argument('--initializer', type=str)
     parser.add_argument('--residual', '--res', action='store_true')
     parser.add_argument('--res_force', '--rf',  action='store_true')
@@ -123,6 +124,8 @@ if __name__ == '__main__':
             eg.add('pi_lr', args.pi_lr, 'pilr')
         if args.vf_lr:
             eg.add('vf_lr', args.vf_lr, 'vflr')
+    if args.gamma:
+        eg.add('gamma', args.gamma, 'gam')
 
     eg.add('difficulty', args.difficulty, 'lvl')
     eg.add('action_type', args.action_type, 'atype')
